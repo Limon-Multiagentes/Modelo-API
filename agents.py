@@ -34,6 +34,7 @@ class Robot(Agent):
         self.movimientos = 0
         self.carga = 100
         self.target = None
+        DIRECTIONS = ['right', 'down', 'left', 'up']
 
     #busca_celdas_disponibles
     def busca_celdas_disponibles(self, incluir, remove_agents=True):
@@ -136,6 +137,23 @@ class Robot(Agent):
             if vecino.sucia:
                 celdas_sucias.append(vecino)
         return celdas_sucias
+    
+    
+    @property
+    def direction(self):
+        return self._direction
+
+    @direction.setter
+    def direction(self, direction):
+        self._direction = direction
+        if self._direction == 'up':
+            self.dx, self.dy = -1, 0
+        elif self._direction == 'down':
+            self.dx, self.dy = 1, 0
+        if self._direction == 'right':
+            self.dx, self.dy = 0, 1
+        elif self._direction == 'left':
+            self.dx, self.dy = 0, -1
 
     def step(self):
         
