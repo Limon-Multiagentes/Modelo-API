@@ -52,7 +52,7 @@ class Almacen(Model):
             robot = Robot(int(f"{num_agentes}3{id}") + 1, self)
             self.grid.place_agent(robot, pos)
 
-
+        
 
         
         '''

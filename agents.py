@@ -8,8 +8,12 @@ import numpy as np
 
 
 class Celda(Agent):
+    DIRECTIONS = ['right', 'down', 'left', 'up']
+
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
+        self.directions = []
+
 
 class Estante(Agent):
     def __init__(self, unique_id, model, ocupado=False):
