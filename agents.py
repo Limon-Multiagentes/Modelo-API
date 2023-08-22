@@ -28,13 +28,15 @@ class Cinta(Agent):
         super().__init__(unique_id, model)
 
 class Robot(Agent):
+    DIRECTIONS = ['right', 'down', 'left', 'up']
+    
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.sig_pos = None
         self.movimientos = 0
         self.carga = 100
         self.target = None
-        DIRECTIONS = ['right', 'down', 'left', 'up']
+        
 
     #busca_celdas_disponibles
     def busca_celdas_disponibles(self, incluir, remove_agents=True):
