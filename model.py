@@ -14,7 +14,7 @@ class Almacen(Model):
         ):
     
         self.num_agentes = num_agentes
-        self.grid = MultiGrid(M, N)
+        self.grid = MultiGrid(M, N,False)
         self.schedule = RandomActivation(self)
 
         #posiciones disponibles del grid
