@@ -140,7 +140,7 @@ class Robot(Agent):
                 celdas_sucias.append(vecino)
         return celdas_sucias
     
-    
+    #Dirreccciones
     @property
     def direction(self):
         return self._direction
