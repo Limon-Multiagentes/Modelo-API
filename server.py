@@ -46,8 +46,8 @@ chart_movimientos = mesa.visualization.ChartModule(
 model_params = {
     "num_agentes": mesa.visualization.Slider(
         "Número de Robots",
-        5,
-        4,
+        1,
+        1,
         MAX_NUMBER_ROBOTS,
         1,
         description="Escoge cuántos robots deseas implementar en el modelo",

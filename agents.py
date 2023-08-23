@@ -32,6 +32,14 @@ class Cinta(Agent):
         super().__init__(unique_id, model)
 
 class Robot(Agent):    
+
+    dirMovs = {
+        "right": (1, 0),
+        "left": (-1, 0),
+        "down": (0 -1),
+        "up": (1, 0), 
+    }
+
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.sig_pos = None
@@ -41,11 +49,25 @@ class Robot(Agent):
 
     #busca_celdas_disponibles
     def busca_celdas_disponibles(self, incluir, remove_agents=True):
-        neighbors = self.model.grid.get_neighbors(self.pos, moore=True, include_center=False)
         celdas = []
-        for neighbor in neighbors:
-            if isinstance(neighbor, incluir):
-                celdas.append(neighbor)
+        directions = []
+        #Obtener las direcciones a las que se puede mover desde la celda actual
+        contents = self.model.grid.get_cell_list_contents(self.pos)
+        print(contents)
+        for content in contents:
+            if isinstance(content, Celda):
+                directions = content.directions
+        #Agregar los elementos de las celdas adyacentes a las que se puede mover
+        print(directions)
+
+        for dir in directions:
+            newPosition = (celda.pos[0] + self.dirMovs[dir][0], celda.pos[1] + self.dirMovs[dir][1]) 
+            contents = self.model.grid.get_cell_list_contents(newPosition)
+            print(contents)
+            for content in contents:
+                if isinstance(content, incluir):
+                    celdas.append(content)
+        #Remover las que tienen robots en el sitio
         disponibles = []
         if remove_agents:
             for celda in celdas:
@@ -60,9 +82,12 @@ class Robot(Agent):
      #selecciona nueva posición a avanzar
     def seleccionar_nueva_pos(self):
         celdas = self.busca_celdas_disponibles((Celda))
+        print(celdas)
+        #si no hay celdas disponibles se queda en la misma posicion
         if(len(celdas) == 0):
           self.sig_pos = self.pos
           return
+        #seleccionar una de las celdas disponibles
         self.sig_pos = self.random.choice(celdas).pos
 
     #calcula distancia entre 2 puntos
@@ -165,7 +190,7 @@ class Robot(Agent):
         if self.pos != self.sig_pos:
             self.movimientos += 1
             self.model.movimiento += 1
-            self.model.grid
+            self.model.grid.move_agent(self, self.sig_pos)
             #if self.carga > 0:
             #    self.carga -= 1
             #    self.model.grid.move_agent(self, self.sig_pos)

@@ -91,58 +91,52 @@ class Almacen(Model):
                 celda.directions = ["left", "right", "up"]
             elif dirs == 13:
                 celda.directions = ["left", "right", "up", "down"]
-
+            print(pos)
+            print(celda.directions)
             self.grid.place_agent(celda, pos)
             
         #posiciones de los robots
         pos_robots = [(0, 2), (15, 2), (0, 3), (15, 3), (0, 4), (15, 4), (0, 11), (15, 11), (0, 12), (15, 12)]
+        pos_robots = pos_robots[:num_agentes]
         for id, pos in enumerate(pos_robots):
             robot = Robot(int(f"{num_agentes}3{id}") + 1, self)
             self.grid.place_agent(robot, pos)
-
-        
-        '''
-
-        self.solicitudes = []
-
-        # Posicionamiento de agentes robot
-        if modo_pos_inicial == 'Aleatoria':
-            pos_inicial_robots = self.random.sample(posiciones_disponibles, k=num_agentes)
-        else:  # 'Fija'
-            pos_inicial_robots = [(1, 1)] * num_agentes
-
-        for id in range(num_agentes):
-            robot = RobotLimpieza(id, self)
-            self.grid.place_agent(robot, pos_inicial_robots[id])
             self.schedule.add(robot)
 
-        self.datacollector = DataCollector(
-            model_reporters={"Grid": get_grid, "Cargas": get_cargas,
-                             "CeldasSucias": get_sucias,
-                             "Tiempo": "tiempo",
-                             "Movimiento": "movimiento",
-                             "Carga": "cantidadCarga"})
+      
+
+        #self.solicitudes = []
+
+        #self.datacollector = DataCollector(
+        #    model_reporters={"Grid": get_grid, "Cargas": get_cargas,
+        #                     "CeldasSucias": get_sucias,
+        #                     "Tiempo": "tiempo",
+        #                     "Movimiento": "movimiento",
+        #                     "Carga": "cantidadCarga"})
         
 
     def step(self):
-        self.datacollector.collect(self)
+        #self.datacollector.collect(self)
+        self.schedule.step()
         
-        if not self.todoLimpio():
-            self.schedule.step()
+        #if not self.todoLimpio():
+        #    self.schedule.step()
 
-            sucias = self.celdasSucias()
-            sucias_sel = self.random.sample(sucias, k=min(len(sucias), self.num_agentes))
-            for celda in sucias_sel:
-                self.pedirAyuda(celda, 1)   
+        #    sucias = self.celdasSucias()
+        #    sucias_sel = self.random.sample(sucias, k=min(len(sucias), self.num_agentes))
+        #    for celda in sucias_sel:
+        #        self.pedirAyuda(celda, 1)   
 
-            self.realizarSolicitudes()
-            self.tiempo += 1
+        #    self.realizarSolicitudes()
+         #   self.tiempo += 1
 
 
-    #calcula distancia entre dos puntos
-    def distancia_euclidiana(self, pos1, pos2):
-        return ((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1]) ** 2) ** 0.5
 
+    #calcula distancia entre 2 puntos
+    def distancia_manhattan(self, pos1, pos2):
+        return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+
+    '''
     #determina si todas las celdas estan limpias
     def todoLimpio(self):
         for (content, pos) in self.grid.coord_iter():
