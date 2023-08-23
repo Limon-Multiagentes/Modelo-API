@@ -10,9 +10,9 @@ import numpy as np
 class Celda(Agent):
     DIRECTIONS = ['right', 'down', 'left', 'up']
 
-    def __init__(self, unique_id, model):
+    def __init__(self, unique_id, model, directions=[]):
         super().__init__(unique_id, model)
-        self.directions = []
+        self.directions = directions
 
 
 class Estante(Agent):
@@ -31,16 +31,13 @@ class Cinta(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
-class Robot(Agent):
-    DIRECTIONS = ['right', 'down', 'left', 'up']
-    
+class Robot(Agent):    
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.sig_pos = None
         self.movimientos = 0
         self.carga = 100
         self.target = None
-        
 
     #busca_celdas_disponibles
     def busca_celdas_disponibles(self, incluir, remove_agents=True):
@@ -68,20 +65,11 @@ class Robot(Agent):
           return
         self.sig_pos = self.random.choice(celdas).pos
 
-    #selecciona una celda a limpiar
-    def limpiar_una_celda(self, lista_de_celdas_sucias):
-        if(len(lista_de_celdas_sucias) == 0):
-          self.sig_pos = self.pos
-          return
-        celda_a_limpiar = self.random.choice(lista_de_celdas_sucias)
-        celda_a_limpiar.sucia = False
-        self.num_celdas_sucias -= 1
-        self.sig_pos = celda_a_limpiar.pos
-
     #calcula distancia entre 2 puntos
-    def distancia_euclidiana(self, pos1, pos2):
-        return ((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1]) ** 2) ** 0.5
+    def distancia_manhattan(self, pos1, pos2):
+        return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
+    """
     #seleccionar la estacion mas carga y colocarla como objetivo del robot
     def seleccionar_estacion_carga(self, lista_celdas_carga):
         celda_mas_cercana = lista_celdas_carga[0]
@@ -143,54 +131,42 @@ class Robot(Agent):
             if vecino.sucia:
                 celdas_sucias.append(vecino)
         return celdas_sucias
-    
-    #Dirreccciones
-    @property
-    def direction(self):
-        return self._direction
-
-    @direction.setter
-    def direction(self, direction):
-        self._direction = direction
-        if self._direction == 'up':
-            self.dx, self.dy = -1, 0
-        elif self._direction == 'down':
-            self.dx, self.dy = 1, 0
-        if self._direction == 'right':
-            self.dx, self.dy = 0, 1
-        elif self._direction == 'left':
-            self.dx, self.dy = 0, -1
+    """
 
     def step(self):
+
+        self.seleccionar_nueva_pos()
+        self.advance()
         
         #si llego al target, borrar el target
-        if self.pos == self.target:
-            self.target = None
+        #if self.pos == self.target:
+        #    self.target = None
 
-        if self.esta_cargando():
-            self.cargar()
-        elif self.target: 
-            self.ve_a_objetivo()
-        elif self.carga_baja():
-            self.seleccionar_estacion_carga(self.model.getEstaciones())
-            self.ve_a_objetivo()
-        else:
-            celdas_sucias = self.buscar_celdas_sucia()
-            self.num_celdas_sucias = len(celdas_sucias)
-            if len(celdas_sucias) == 0:
-                self.seleccionar_nueva_pos()
-            else:
-                if self.num_celdas_sucias >= 3:
-                    self.model.pedirAyuda(self.pos, self.num_celdas_sucias)
-                self.limpiar_una_celda(celdas_sucias)
+        #if self.esta_cargando():
+        #    self.cargar()
+        #elif self.target: 
+        #    self.ve_a_objetivo()
+        #elif self.carga_baja():
+        #    self.seleccionar_estacion_carga(self.model.getEstaciones())
+        #    self.ve_a_objetivo()
+        #else:
+        #    celdas_sucias = self.buscar_celdas_sucia()
+        #    self.num_celdas_sucias = len(celdas_sucias)
+        #    if len(celdas_sucias) == 0:
+        #        self.seleccionar_nueva_pos()
+        #    else:
+        #        if self.num_celdas_sucias >= 3:
+        #            self.model.pedirAyuda(self.pos, self.num_celdas_sucias)
+        #        self.limpiar_una_celda(celdas_sucias)
 
-        self.advance()
+        #self.advance()
                 
-
     def advance(self):
         if self.pos != self.sig_pos:
             self.movimientos += 1
             self.model.movimiento += 1
-            if self.carga > 0:
-                self.carga -= 1
-                self.model.grid.move_agent(self, self.sig_pos)
+            self.model.grid
+            #if self.carga > 0:
+            #    self.carga -= 1
+            #    self.model.grid.move_agent(self, self.sig_pos)
+

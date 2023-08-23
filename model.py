@@ -7,6 +7,26 @@ from itertools import chain
 from agents import Cinta, Estante, EstacionCarga, Celda, Robot
 
 class Almacen(Model):
+
+    DIR_POSIBLES = [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
+            [0, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 0],
+            [2, 5, 11, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 8, 4],
+            [2, 5, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 8, 4],
+            [2, 5, 11, 10, 10, 10, 10, 12, 8, 10, 10, 10, 10, 12, 8, 4],
+            [0, 5, 11, 9, 9, 9, 9, 5, 11, 9, 9, 9, 9, 12, 8, 0],
+            [2, 12, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 11, 4],
+            [0, 5, 11, 10, 10, 10, 10, 12, 8, 10, 10, 10, 10, 12, 8, 0],
+            [0, 5, 11, 9, 9, 9, 9, 5, 11, 9, 9, 9, 9, 12, 8, 0],
+            [2, 12, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 11, 4],
+            [0, 5, 11, 10, 10, 10, 10, 12, 8, 10, 10, 10, 10, 12, 8, 0],
+            [2, 5, 11, 9, 9, 9, 9, 5, 11, 9, 9, 9, 9, 12, 8, 4],
+            [2, 5, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 8, 4],
+            [0, 5, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 12, 8],
+            [0, 2, 7, 7, 7, 7, 7, 9, 7, 7, 7, 7, 7, 7, 3, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+    
     def __init__(self, M: int, N: int,
                  num_agentes: int = 5,
                  tasa_entrada: int = 0.2,
@@ -44,6 +64,34 @@ class Almacen(Model):
         #posiciones de las celdas
         for id, pos in enumerate(posiciones_disponibles):
             celda = Celda(int(f"{num_agentes}{id}") + 1, self)
+            dirs = self.DIR_POSIBLES[pos[0]][pos[1]]
+            if dirs == 1:
+                celda.directions = ["up"]
+            elif dirs == 2:
+                celda.directions = ["right"]
+            elif dirs == 3:
+                celda.directions = ["down"]
+            elif dirs == 4:
+                celda.directions = ["left"]
+            elif dirs == 5:
+                celda.directions = ["right", "up"]
+            elif dirs == 6:
+                celda.directions = ["left", "up"]
+            elif dirs == 7:
+                celda.directions = ["right", "down"]
+            elif dirs == 8:
+                celda.directions = ["left", "down"]
+            elif dirs == 9:
+                celda.directions = ["right", "down", "up"]
+            elif dirs == 10:
+                celda.directions = ["left", "down", "up"]
+            elif dirs == 11:
+                celda.directions = ["left", "right", "down"]
+            elif dirs == 12:
+                celda.directions = ["left", "right", "up"]
+            elif dirs == 13:
+                celda.directions = ["left", "right", "up", "down"]
+
             self.grid.place_agent(celda, pos)
             
         #posiciones de los robots
@@ -51,8 +99,6 @@ class Almacen(Model):
         for id, pos in enumerate(pos_robots):
             robot = Robot(int(f"{num_agentes}3{id}") + 1, self)
             self.grid.place_agent(robot, pos)
-
-        
 
         
         '''
