@@ -1,7 +1,7 @@
 import mesa
 
 from model import Almacen
-from agents import Cinta, Estante, EstacionCarga, Robot
+from agents import Cinta, Estante, EstacionCarga, Robot, Paquete
 
 MAX_NUMBER_ROBOTS = 10
 
@@ -15,6 +15,8 @@ def agent_portrayal(agent):
         return {"Shape": "rect", "Filled": "true", "Color": "yellow", "Layer": 0, "w": 0.9, "h": 0.9}
     elif isinstance(agent, Robot):
         return {"Shape": "circle", "Filled": "true", "Color": "blue", "Layer": 1, "r": 0.8}
+    elif isinstance(agent, Paquete):
+        return {"Shape": "rect", "Filled": "true", "Color": "green", "Layer": 1, "w": 0.7, "h": 0.7}
 
 
 grid = mesa.visualization.CanvasGrid(
@@ -46,8 +48,8 @@ chart_movimientos = mesa.visualization.ChartModule(
 model_params = {
     "num_agentes": mesa.visualization.Slider(
         "Número de Robots",
-        5,
-        4,
+        1,
+        1,
         MAX_NUMBER_ROBOTS,
         1,
         description="Escoge cuántos robots deseas implementar en el modelo",
