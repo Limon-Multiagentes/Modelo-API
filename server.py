@@ -14,9 +14,9 @@ def agent_portrayal(agent):
     elif isinstance(agent, EstacionCarga):
         return {"Shape": "rect", "Filled": "true", "Color": "yellow", "Layer": 0, "w": 0.9, "h": 0.9}
     elif isinstance(agent, Robot):
-        return {"Shape": "circle", "Filled": "true", "Color": "blue", "Layer": 1, "r": 0.8}
+        return {"Shape": "circle", "Filled": "true", "Color": "blue", "Layer": 1, "r": 0.9}
     elif isinstance(agent, Paquete):
-        return {"Shape": "rect", "Filled": "true", "Color": "green", "Layer": 1, "w": 0.7, "h": 0.7}
+        return {"Shape": "rect", "Filled": "true", "Color": "green", "Layer": 2, "w": 0.5, "h": 0.5}
 
 
 grid = mesa.visualization.CanvasGrid(

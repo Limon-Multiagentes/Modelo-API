@@ -13,20 +13,25 @@ class Almacen(Model):
             [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
             [0, 1, 6, 6, 6, 6, 10, 6, 6, 6, 6, 6, 6, 6, 4, 0],
             [2, 5, 7, 7, 7, 7, 7, 9, 9, 7, 7, 7, 7, 9, 8, 4],
-            [2, 5, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 8, 4],
+            [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
             [2, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 4],
             [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
-            [2, 12, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 11, 4],
+            [2, 12, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 11, 4],
             [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
             [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
-            [2, 12, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 11, 4],
+            [2, 12, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 11, 4],
             [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
             [2, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 4],
-            [2, 5, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 8, 4],
+            [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
             [0, 5, 10, 6, 6, 6, 6, 10, 10, 6, 6, 6, 6, 12, 8, 0],
             [0, 2, 7, 7, 7, 7, 7, 7, 7, 9, 7, 7, 7, 7, 3, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0]
         ]
+    
+    FILAS_ESTANTES = 4
+    COLUMNAS_ESTANTES = 8
+    
+
     
     def __init__(self, M: int, N: int,
                  num_agentes: int = 5,
@@ -34,20 +39,33 @@ class Almacen(Model):
                  tasa_salida: int = 30
         ):
     
+        #tasas y contadores de entrada y salida
         self.tasa_entrada = tasa_entrada
         self.tasa_saluda = tasa_salida
         self.cont_entrada = tasa_entrada
         self.cont_salida = tasa_salida
 
+        #cantidad de robots y paquetes
         self.num_agentes = num_agentes
         self.num_paquetes = 0
 
+        #espacios de los estantes en el almacen
+        self.espacios_almacen = [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+
+        #solicitudes a los robots
         self.solicitudes = []
 
-
+        #grafo para busqueda de trayectorias optimas
         self.graph = self.creaGrafo()
+
         self.grid = MultiGrid(M, N,False)
-        self.schedule = RandomActivation(self)
+        self.scheduleRobots = RandomActivation(self)
+        self.schedulePaquetes = RandomActivation(self)
 
         #posiciones disponibles del grid
         posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
@@ -62,11 +80,11 @@ class Almacen(Model):
         
 
         #posiciones para los estantes
-        celdas_estantes = [(i, j) for i in chain(range(3, 7), range(9, 13)) for j in range(3, 13, 3)]
+        celdas_estantes = [(i, j) for j in range(3, 13, 3) for i in chain(range(3, 7), range(9, 13))]
+        self.celdas_estantes = celdas_estantes
         for id, pos in enumerate(celdas_estantes):
             estante = Estante(int(f"{num_agentes}1{id}") + 1, self)
             self.grid.place_agent(estante, pos)
-            posiciones_disponibles.remove(pos)
 
         #posiciones para las estaciones de carga
         celdas_cargas = [(0, 6), (0, 9), (15, 6), (15, 9)]
@@ -105,6 +123,8 @@ class Almacen(Model):
                 celda.directions = ["left", "right", "up"]
             elif dirs == 13:
                 celda.directions = ["left", "right", "up", "down"]
+            elif dirs == 14:
+                celda.directions = ["up", "down"]
             self.grid.place_agent(celda, pos)
             
         #posiciones de los robots
@@ -113,7 +133,7 @@ class Almacen(Model):
         for id, pos in enumerate(pos_robots):
             robot = Robot(int(f"{num_agentes}3{id}") + 1, self)
             self.grid.place_agent(robot, pos)
-            self.schedule.add(robot)
+            self.scheduleRobots.add(robot)
 
       
 
@@ -128,14 +148,16 @@ class Almacen(Model):
         
 
     def step(self):
+        #instanciar paquetes despues de una cuenta
         self.cont_entrada -= 1
         if self.cont_entrada == 0:
             self.instantiatePackage()
             self.cont_entrada = self.tasa_entrada
 
         #self.datacollector.collect(self)
-        self.schedule.step()
         self.realizarSolicitudes()
+        self.scheduleRobots.step()
+        self.schedulePaquetes.step()
         
         #if not self.todoLimpio():
         #    sucias = self.celdasSucias()
@@ -158,10 +180,11 @@ class Almacen(Model):
             paquete = Paquete(int(f"{self.num_agentes}4{self.num_paquetes}")+1, self)
             self.num_paquetes += 1
             self.grid.place_agent(paquete, (15, 0))
-            self.schedule.add(paquete)
+            self.schedulePaquetes.add(paquete)
         #crear solicitud a los robots para recoger el paquete
         solicitud = {
             "priority": 5,
+            "id": self.num_paquetes-1,
             "position": (6, 0),
             "action": "RETRIEVE"
         }
@@ -178,8 +201,10 @@ class Almacen(Model):
 
     #realiza cada una de las solicitudes a los robots
     def realizarSolicitudes(self):
-        self.solicitudes = sorted(self.solicitudes, key=lambda solicitud: solicitud["priority"], reverse = True)
+        self.solicitudes = sorted(self.solicitudes, key=lambda solicitud: (-solicitud["priority"], solicitud["id"]))
         agentes = self.getAgentes()
+
+        restantes = []
 
         for solicitud in self.solicitudes:
             agentes = sorted(agentes, key=lambda agente: self.distancia_manhattan(solicitud["position"], agente[1]))
@@ -187,8 +212,9 @@ class Almacen(Model):
                 result = agente[0].procesar_solicitud(solicitud)
                 if result:
                     break
+            restantes.append(solicitud)
                 
-        self.solicitudes = []
+        self.solicitudes = restantes
 
     #obtiene los robots de limpieza del grid
     def getAgentes(self):
@@ -198,6 +224,15 @@ class Almacen(Model):
                 if isinstance(obj, Robot):
                     agentes.append((obj, pos))
         return agentes
+    
+    #retorna el siguiente espacio disponible en el almacen y lo marca como ocupado
+    def get_espacio_disponible(self):
+        for i in range(self.FILAS_ESTANTES):
+            for j in range(self.COLUMNAS_ESTANTES):
+                if self.espacios_almacen[i][j] == 0:
+                    self.espacios_almacen[i][j] = 1
+                    index = i * self.COLUMNAS_ESTANTES + j
+                    return self.celdas_estantes[index]
     
     #creamos grafo del almacen
     def creaGrafo(self):
@@ -246,7 +281,10 @@ class Almacen(Model):
                     G.add_edge((j, i), (j+1, i))
                     G.add_edge((j, i), (j, i+1))
                     G.add_edge((j, i), (j, i-1))
-        print(G.edges)
+                elif dirs == 14:
+                    G.add_edge((j, i), (j, i+1))
+                    G.add_edge((j, i), (j, i-1))
+
         nx.set_edge_attributes(G, {e: 1 for e in G.edges()}, "cost")
         return G
 
