@@ -6,6 +6,7 @@ from mesa.datacollection import DataCollector
 
 import numpy as np
 import networkx as nx
+import copy
 
 
 class Celda(Agent):
@@ -39,6 +40,9 @@ class Paquete(Agent):
                 self.model.grid.move_agent(self, self.sig_pos)
             else:
                 self.sig_pos = self.pos
+        else:
+            if self.sig_pos != self.pos:
+                self.model.grid.move_agent(self, self.sig_pos)
 
 
 class Cinta(Agent):
@@ -60,9 +64,10 @@ class Robot(Agent):
         self.movimientos = 0
         self.carga = 100
         self.target = None
-        self.action = None
+        self.action = "WANDER"
 
         self.path = []
+        self.updated_graph = False
 
     #busca_celdas_disponibles
     def busca_celdas_disponibles(self, incluir, inicio, remove_agents=True):
@@ -104,10 +109,12 @@ class Robot(Agent):
 
     #avanza hacia un objetivo
     def ve_a_objetivo(self):      
-        #if self.target in self.model.posiciones_estaciones:
-        #    celdas = self.busca_celdas_disponibles((Celda, EstacionCarga))
-        #else:
-        self.path = nx.astar_path(self.model.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
+        if self.action == "STORE":
+            if not self.updated_graph:
+                self.graph = self.actualizar_grafo(self.model.graph, self.target)
+            self.path = nx.astar_path(self.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
+        else:
+            self.path = nx.astar_path(self.model.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
 
         #si no hay celdas disponibles se queda en la misma posicion
         if(len(self.path) == 0):
@@ -117,12 +124,23 @@ class Robot(Agent):
         self.path.pop(0)
         self.sig_pos = self.path[0]
 
+    #actualiza grafo para acceder a estaciones de carga
+    def actualizar_grafo(self, graph, target):
+        G = copy.deepcopy(graph)
+        G.add_edge((target[0], target[1]-1), target)
+        G.add_edge((target[0], target[1]+1), target)
+        G.add_edge(target, (target[0], target[1]-1))
+        G.add_edge(target, (target[0], target[1]+1))
+        nx.set_edge_attributes(G, {e: 1 for e in G.edges()}, "cost")
+        self.updated_graph = True
+        return G
+
     #espera hasta que el paquete llegue a la zona de recoleccion
     def espera_paquete(self):
         contents = self.model.grid.get_cell_list_contents(self.pos)
         for content in contents:
             if isinstance(content, Paquete):
-                self.action = "STORE"
+                self.solicitar_espacio_guardar()
                 break
 
     #calcula distancia entre 2 puntos
@@ -137,6 +155,18 @@ class Robot(Agent):
             self.target = solicitud["position"]
             self.action = solicitud["action"]
             return True
+    
+    #solicitar un espacio para guardar un paquete
+    def solicitar_espacio_guardar(self):
+        self.action = "STORE"
+        self.target = self.model.get_espacio_disponible()
+
+    #mueve el paquete a su siguiente posicion
+    def mover_paquete(self):
+        contents = self.model.grid.get_cell_list_contents(self.pos)
+        for content in contents:
+            if isinstance(content, Paquete):
+                content.sig_pos = self.sig_pos
 
     """
     #seleccionar la estacion mas carga y colocarla como objetivo del robot
@@ -166,24 +196,20 @@ class Robot(Agent):
             self.sig_pos = self.pos
             if self.carga == 100:
                 self.model.cantidadCarga += 1
-
-    #buscar una celda sucia
-    def buscar_celdas_sucia(self):
-        celdas = self.busca_celdas_disponibles((Celda))
-        celdas_sucias = []
-        for vecino in celdas:
-            if vecino.sucia:
-                celdas_sucias.append(vecino)
-        return celdas_sucias
     """
 
     def step(self):
 
         if self.pos == self.target:
             self.target = None
+            if self.action == "STORE":
+                self.updated_graph = False
+                self.action = "WANDER"
 
         if self.target:
             self.ve_a_objetivo()
+            if self.action == "STORE":
+                self.mover_paquete()
         elif self.action == "RETRIEVE":
             self.espera_paquete()
         else:
@@ -192,9 +218,6 @@ class Robot(Agent):
         self.advance()
 
         
-        #si llego al target, borrar el target
-        #if self.pos == self.target:
-        #    self.target = None
 
         #if self.esta_cargando():
         #    self.cargar()
