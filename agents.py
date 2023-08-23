@@ -5,6 +5,7 @@ from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 
 import numpy as np
+import networkx as nx
 
 
 class Celda(Agent):
@@ -61,6 +62,8 @@ class Robot(Agent):
         self.target = None
         self.action = None
 
+        self.path = []
+
     #busca_celdas_disponibles
     def busca_celdas_disponibles(self, incluir, inicio, remove_agents=True):
         celdas = []
@@ -104,70 +107,15 @@ class Robot(Agent):
         #if self.target in self.model.posiciones_estaciones:
         #    celdas = self.busca_celdas_disponibles((Celda, EstacionCarga))
         #else:
-        celdas = self.busca_celdas_disponibles((Celda), self.pos)
-        #si no hay celdas disponibles se queda en la misma posicion
-        celdas_ut = self.celdas_utiles(celdas, self.pos, self.target, 2)
+        self.path = nx.astar_path(self.model.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
 
-        if(len(celdas_ut) == 0):
+        #si no hay celdas disponibles se queda en la misma posicion
+        if(len(self.path) == 0):
           self.sig_pos = self.pos
           return
         
-        celdas_ut = sorted(celdas_ut, key=lambda neighbor: self.distancia_manhattan(self.target, neighbor.pos))
-        self.sig_pos = celdas_ut[0].pos
-
-    #las celdas utiles para un objetivo son aquellas cuyas direcciones permiten acercarse al objetivo
-    def celdas_utiles(self, celdas, pos, target, it):
-        #detectar las direcciones que debe seguir
-        best_dirs = []
-        if pos[0] > target[0]:
-            best_dirs.append("left")
-        else:
-            best_dirs.append("right")
-        if pos[1] > target[1]:
-            best_dirs.append("down")
-        else:
-            best_dirs.append("up")
-
-        it -= 1
-        best_celdas = []
-
-        #iterar sobre las celdas para encontrar las celdas utiles
-        for celda in celdas:
-            for dir in best_dirs:
-                #si la celda tiene una direccion util o es el target
-                if dir in celda.directions or celda.pos == target:
-                    #si la accion no es store es necesario verificar que la direccion no lleve a un estante
-                    if self.action != "STORE":
-                        next_pos = (celda.pos[0] + self.dirMovs[dir][0], celda.pos[1] + self.dirMovs[dir][1])
-                        is_available = True
-                        for content in self.model.grid.get_cell_list_contents(next_pos):
-                            if isinstance(content, Estante):
-                                is_available = False
-                        if is_available:
-                            best_celdas.append(celda)
-                            break
-                    else:
-                        best_celdas.append(celda)
-                        break  
-        
-        #si el target esta en las celdas seleccionadas o se acabaron las iteraciones se termina el procesamiento
-        for celda in best_celdas:
-            if celda.pos == target:
-                return best_celdas
-            
-        if it == 0:
-            return best_celdas
-        
-        #calcular si a partir de las celdas seleccionadas se puede desplazar a nuevas celdas utiles
-        best_celdas_d = []
-
-        for celda in best_celdas:
-            adyacentes = self.busca_celdas_disponibles((Celda), celda.pos)
-            celdas_ut = self.celdas_utiles(adyacentes, celda.pos, self.target, it)
-            if celdas_ut:
-                best_celdas_d.append(celda)
-        return best_celdas_d
-
+        self.path.pop(0)
+        self.sig_pos = self.path[0]
 
     #espera hasta que el paquete llegue a la zona de recoleccion
     def espera_paquete(self):
@@ -188,7 +136,6 @@ class Robot(Agent):
         else:
             self.target = solicitud["position"]
             self.action = solicitud["action"]
-            print(self.target, self.action)
             return True
 
     """
@@ -231,8 +178,6 @@ class Robot(Agent):
     """
 
     def step(self):
-
-        print(self.pos, self.target)
 
         if self.pos == self.target:
             self.target = None

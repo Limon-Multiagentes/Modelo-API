@@ -5,24 +5,25 @@ from mesa.datacollection import DataCollector
 from itertools import chain
 
 from agents import Cinta, Estante, EstacionCarga, Celda, Robot, Paquete
+import networkx as nx
 
 class Almacen(Model):
 
     DIR_POSIBLES = [
             [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
             [0, 1, 6, 6, 6, 6, 10, 6, 6, 6, 6, 6, 6, 6, 4, 0],
-            [2, 5, 7, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 8, 4],
+            [2, 5, 7, 7, 7, 7, 7, 9, 9, 7, 7, 7, 7, 9, 8, 4],
             [2, 5, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 8, 4],
-            [2, 5, 11, 10, 10, 10, 10, 12, 8, 10, 10, 10, 10, 12, 8, 4],
-            [0, 5, 11, 9, 9, 9, 9, 5, 11, 9, 9, 9, 9, 12, 8, 0],
+            [2, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 4],
+            [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
             [2, 12, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 11, 4],
-            [0, 5, 11, 10, 10, 10, 10, 12, 8, 10, 10, 10, 10, 12, 8, 0],
-            [0, 5, 11, 9, 9, 9, 9, 5, 11, 9, 9, 9, 9, 12, 8, 0],
+            [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
+            [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
             [2, 12, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 11, 4],
-            [0, 5, 11, 10, 10, 10, 10, 12, 8, 10, 10, 10, 10, 12, 8, 0],
-            [2, 5, 11, 9, 9, 9, 9, 5, 11, 9, 9, 9, 9, 12, 8, 4],
+            [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
+            [2, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 4],
             [2, 5, 8, 0, 0, 0, 0, 5, 8, 0, 0, 0, 0, 5, 8, 4],
-            [0, 5, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 12, 8, 0],
+            [0, 5, 10, 6, 6, 6, 6, 10, 10, 6, 6, 6, 6, 12, 8, 0],
             [0, 2, 7, 7, 7, 7, 7, 7, 7, 9, 7, 7, 7, 7, 3, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0]
         ]
@@ -43,6 +44,8 @@ class Almacen(Model):
 
         self.solicitudes = []
 
+
+        self.graph = self.creaGrafo()
         self.grid = MultiGrid(M, N,False)
         self.schedule = RandomActivation(self)
 
@@ -178,8 +181,6 @@ class Almacen(Model):
         self.solicitudes = sorted(self.solicitudes, key=lambda solicitud: solicitud["priority"], reverse = True)
         agentes = self.getAgentes()
 
-        print(self.solicitudes)
-
         for solicitud in self.solicitudes:
             agentes = sorted(agentes, key=lambda agente: self.distancia_manhattan(solicitud["position"], agente[1]))
             for agente in agentes:
@@ -197,6 +198,57 @@ class Almacen(Model):
                 if isinstance(obj, Robot):
                     agentes.append((obj, pos))
         return agentes
+    
+    #creamos grafo del almacen
+    def creaGrafo(self):
+        G = nx.DiGraph()
+        for i in range(16):
+            for j in range(16):
+                dirs = self.DIR_POSIBLES[i][j]
+                if dirs == 1:
+                    G.add_edge((j, i), (j, i+1))
+                elif dirs == 2:
+                    G.add_edge((j, i), (j+1, i))
+                elif dirs == 3:
+                    G.add_edge((j, i), (j, i-1))
+                elif dirs == 4:
+                    G.add_edge((j, i), (j-1, i))
+                elif dirs == 5:
+                    G.add_edge((j, i), (j+1, i))
+                    G.add_edge((j, i), (j, i+1))
+                elif dirs == 6:
+                    G.add_edge((j, i), (j-1, i))
+                    G.add_edge((j, i), (j, i+1))
+                elif dirs == 7:
+                    G.add_edge((j, i), (j+1, i))
+                    G.add_edge((j, i), (j, i-1))
+                elif dirs == 8:
+                    G.add_edge((j, i), (j-1, i))
+                    G.add_edge((j, i), (j, i-1))
+                elif dirs == 9:
+                    G.add_edge((j, i), (j+1, i))
+                    G.add_edge((j, i), (j, i-1))
+                    G.add_edge((j, i), (j, i+1))
+                elif dirs == 10:
+                    G.add_edge((j, i), (j-1, i))
+                    G.add_edge((j, i), (j, i-1))
+                    G.add_edge((j, i), (j, i+1))
+                elif dirs == 11:
+                    G.add_edge((j, i), (j-1, i))
+                    G.add_edge((j, i), (j+1, i))
+                    G.add_edge((j, i), (j, i-1))
+                elif dirs == 12:
+                    G.add_edge((j, i), (j-1, i))
+                    G.add_edge((j, i), (j+1, i))
+                    G.add_edge((j, i), (j, i+1))
+                elif dirs == 13:
+                    G.add_edge((j, i), (j-1, i))
+                    G.add_edge((j, i), (j+1, i))
+                    G.add_edge((j, i), (j, i+1))
+                    G.add_edge((j, i), (j, i-1))
+        print(G.edges)
+        nx.set_edge_attributes(G, {e: 1 for e in G.edges()}, "cost")
+        return G
 
     '''
     #determina si todas las celdas estan limpias
