@@ -17,7 +17,7 @@ class Celda(Agent):
         self.directions = directions
 
 class Estante(Agent):
-    def __init__(self, unique_id, model, ocupado=False):
+    def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
 class EstacionCarga(Agent):
@@ -25,8 +25,9 @@ class EstacionCarga(Agent):
         super().__init__(unique_id, model)
 
 class Paquete(Agent):
-    def __init__(self, unique_id, model):
+    def __init__(self, unique_id, model, peso):
         super().__init__(unique_id, model)
+        self.peso = peso
         
     def step(self):
         if(self.pos in self.model.celdas_cinta):
@@ -37,7 +38,11 @@ class Paquete(Agent):
                 if isinstance(content, Paquete):
                     should_move = False
             if should_move:
-                self.model.grid.move_agent(self, self.sig_pos)
+                if self.sig_pos[0] >= 0:
+                    self.model.grid.move_agent(self, self.sig_pos)
+                else:
+                    self.model.grid.remove_agent(self)
+                    self.model.schedulePaquetes.remove(self)
             else:
                 self.sig_pos = self.pos
         else:
@@ -62,6 +67,7 @@ class Robot(Agent):
         super().__init__(unique_id, model)
         self.sig_pos = None
         self.movimientos = 0
+        self.peso_carga = 0
         self.carga = 100
         self.target = None
         self.action = "WANDER"
@@ -109,9 +115,9 @@ class Robot(Agent):
 
     #avanza hacia un objetivo
     def ve_a_objetivo(self):      
-        if self.action == "STORE":
+        if self.action in ["STORE", "CHARGE", "PICKUP"]:
             if not self.updated_graph:
-                self.graph = self.actualizar_grafo(self.model.graph, self.target)
+                self.graph = self.actualizar_grafo(self.model.graph, self.target, self.action)
             self.path = nx.astar_path(self.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
         else:
             self.path = nx.astar_path(self.model.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
@@ -125,12 +131,16 @@ class Robot(Agent):
         self.sig_pos = self.path[0]
 
     #actualiza grafo para acceder a estaciones de carga
-    def actualizar_grafo(self, graph, target):
+    def actualizar_grafo(self, graph, target, action):
         G = copy.deepcopy(graph)
-        G.add_edge((target[0], target[1]-1), target)
-        G.add_edge((target[0], target[1]+1), target)
-        G.add_edge(target, (target[0], target[1]-1))
-        G.add_edge(target, (target[0], target[1]+1))
+        if action in ["STORE", "PICKUP"]:
+            G.add_edge((target[0], target[1]-1), target)
+            G.add_edge((target[0], target[1]+1), target)
+        else:
+            if target[0] == 0:
+                G.add_edge((target[0]+1, target[1]), target)
+            else:
+                G.add_edge((target[0]-1, target[1]), target)
         nx.set_edge_attributes(G, {e: 1 for e in G.edges()}, "cost")
         self.updated_graph = True
         return G
@@ -140,8 +150,33 @@ class Robot(Agent):
         contents = self.model.grid.get_cell_list_contents(self.pos)
         for content in contents:
             if isinstance(content, Paquete):
+                self.peso_carga = content.peso
                 self.solicitar_espacio_guardar()
                 break
+
+    #guardar el paquete en el estante
+    def guardar_paquete(self):
+        self.peso_carga = 0
+        self.action = "WANDER"
+
+    #recoge un paquete de un estante
+    def recoge_paquete(self):
+        contents = self.model.grid.get_cell_list_contents(self.pos)
+        for content in contents:
+            if isinstance(content, Paquete):
+                self.peso_carga = content.peso
+                self.target = (9, 15)
+                self.action = "SEND"
+                break
+
+    #envia un paquete por la cinta transportadora
+    def envia_paquete(self):
+        contents = self.model.grid.get_cell_list_contents(self.pos)
+        for content in contents:
+            if isinstance(content, Paquete):
+                content.sig_pos = (self.pos[0]-1, self.pos[1])
+                self.peso_carga = 0
+                self.action = "WANDER"
 
     #calcula distancia entre 2 puntos
     def distancia_manhattan(self, pos1, pos2):
@@ -149,7 +184,7 @@ class Robot(Agent):
     
     #procesa solicitud de ayuda
     def procesar_solicitud(self, solicitud):
-        if self.target:
+        if self.target or self.action in ["RECEIVE", "STORE", "CHARGE", "SEND"] or self.carga_baja():
             return False
         else:
             self.target = solicitud["position"]
@@ -168,16 +203,12 @@ class Robot(Agent):
             if isinstance(content, Paquete):
                 content.sig_pos = self.sig_pos
 
-    """
+
     #seleccionar la estacion mas carga y colocarla como objetivo del robot
-    def seleccionar_estacion_carga(self, lista_celdas_carga):
-        celda_mas_cercana = lista_celdas_carga[0]
-        min_distancia = float("inf") #celda[0], celda[1] coordenadas estacion
-        for celda in lista_celdas_carga: #self.pos.x, self.pos.y coordenadas robot 
-            distancia = self.distancia_euclidiana(celda, self.pos)  
-            if distancia < min_distancia:
-                min_distancia = distancia
-                celda_mas_cercana = celda
+    def selecciona_estacion_carga(self):
+        celdas_carga = self.model.celdas_cargas
+        celdas_ord = sorted(celdas_carga, key=lambda celda: self.distancia_manhattan(self.pos, celda))
+        celda_mas_cercana = celdas_ord[0]
         self.target = celda_mas_cercana
 
     #regresa si la carga está baja
@@ -186,63 +217,52 @@ class Robot(Agent):
 
     #regresa si el robot está cargando
     def esta_cargando(self):
-        return self.carga < 100 and self.pos in self.model.posiciones_estaciones 
+        return self.carga < 100 and self.pos in self.model.celdas_cargas
         
     #carga al robot
     def cargar(self):
-        if self.carga < 100:
-            self.carga += 25
-            self.carga = min(self.carga, 100)
-            self.sig_pos = self.pos
-            if self.carga == 100:
-                self.model.cantidadCarga += 1
-    """
+        self.carga += (100/15)
+        self.carga = round( min(self.carga, 100), 2)
 
     def step(self):
-
+        #si ha llegado al target eliminarlo
+        #cuando esta guardando, eliminar la carga
         if self.pos == self.target:
             self.target = None
-            if self.action == "STORE":
-                self.updated_graph = False
-                self.action = "WANDER"
+            self.updated_graph = False
 
         if self.target:
             self.ve_a_objetivo()
-            if self.action == "STORE":
+            if self.action in ["STORE", "SEND"]:
                 self.mover_paquete()
         elif self.action == "RETRIEVE":
             self.espera_paquete()
+        elif self.action == "STORE":
+            self.guardar_paquete()
+        elif self.action == "PICKUP":
+            self.recoge_paquete()
+        elif self.action == "SEND":
+            self.envia_paquete()
+        elif self.esta_cargando():
+            self.cargar()
+            if self.carga == 100:
+                self.action = "WANDER"
+        elif self.carga_baja() and self.action not in ["STORE", "RECEIVE", "PICKUP", "SEND"]:
+            self.selecciona_estacion_carga()
+            self.action = "CHARGE"
+            self.ve_a_objetivo()
         else:
             self.seleccionar_nueva_pos()
 
         self.advance()
-
-        
-
-        #if self.esta_cargando():
-        #    self.cargar()
-        #elif self.target: 
-        #    self.ve_a_objetivo()
-        #elif self.carga_baja():
-        #    self.seleccionar_estacion_carga(self.model.getEstaciones())
-        #    self.ve_a_objetivo()
-        #else:
-        #    celdas_sucias = self.buscar_celdas_sucia()
-        #    self.num_celdas_sucias = len(celdas_sucias)
-        #    if len(celdas_sucias) == 0:
-        #        self.seleccionar_nueva_pos()
-        #    else:
-        #        if self.num_celdas_sucias >= 3:
-        #            self.model.pedirAyuda(self.pos, self.num_celdas_sucias)
-        #        self.limpiar_una_celda(celdas_sucias)
-
-        #self.advance()
                 
     def advance(self):
         if self.pos != self.sig_pos:
             self.movimientos += 1
-            self.model.grid.move_agent(self, self.sig_pos)
-            #if self.carga > 0:
-            #    self.carga -= 1
-            #    self.model.grid.move_agent(self, self.sig_pos)
+            if self.carga > 0:
+                descarga = (0.1 + self.peso_carga * 0.1)*2
+                self.carga = round(self.carga - descarga, 2)
+                self.model.grid.move_agent(self, self.sig_pos)
+                if self.carga < 0:
+                    self.carga = 0
 
