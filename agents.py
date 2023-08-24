@@ -115,12 +115,23 @@ class Robot(Agent):
 
     #avanza hacia un objetivo
     def ve_a_objetivo(self):      
+        #actualizar el grafo con los caminos adicionales correspondientes y buscar el camino
         if self.action in ["STORE", "CHARGE", "PICKUP"]:
             if not self.updated_graph:
                 self.graph = self.actualizar_grafo(self.model.graph, self.target, self.action)
-            self.path = nx.astar_path(self.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
+            try:
+                graph = self.elimina_obstaculos(self.graph, self.pos, self.action)
+                self.path = nx.astar_path(graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
+            except:
+                self.sig_pos = self.pos
+                return
         else:
-            self.path = nx.astar_path(self.model.graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
+            try:
+                graph = self.elimina_obstaculos(self.model.graph, self.pos, self.action)
+                self.path = nx.astar_path(graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
+            except:
+                self.sig_pos = self.pos
+                return
 
         #si no hay celdas disponibles se queda en la misma posicion
         if(len(self.path) == 0):
@@ -143,6 +154,39 @@ class Robot(Agent):
                 G.add_edge((target[0]-1, target[1]), target)
         nx.set_edge_attributes(G, {e: 1 for e in G.edges()}, "cost")
         self.updated_graph = True
+        return G
+    
+    #elimina del grafo las aristas que llevan a celdas ocupadas por otros robots
+    def elimina_obstaculos(self, graph, pos, action):
+        G = copy.deepcopy(graph)
+        #obtener las direcciones de la celda actual
+        contents = self.model.grid.get_cell_list_contents(pos)
+        directions = []
+        for content in contents:
+            if isinstance(content, Celda):
+                directions = content.directions
+
+        #agregar las direcciones necesarias dependiendo de la accion del robot
+        if action in ["STORE", "PICKUP"] and abs(self.target[1] - pos[1]) == 1 and self.target[0] - pos[0] == 0:
+            if self.target[1] > pos[1]: #target arriba
+                directions.append("up")
+            else: #target abajo
+                directions.append("down")
+        elif action == "CHARGE" and abs(self.target[0] - pos[0]) == 1 and self.target[1] - pos[1] == 0:
+            if self.target[0] > pos[0]: #target a la derecha
+                directions.append("right") 
+            else: #target a la izquierda
+                directions.append("left")
+            
+        #para cada una de las celdas a las que puede ir eliminar las aristas que llevan  a otros robots
+        for dir in directions:
+            newPosition = (pos[0] + self.dirMovs[dir][0], pos[1] + self.dirMovs[dir][1])
+            contents = self.model.grid.get_cell_list_contents(newPosition)
+            for content in contents:
+                if isinstance(content, Robot):
+                    if G.has_edge(pos, newPosition):
+                        G.remove_edge(pos, newPosition)
+
         return G
 
     #espera hasta que el paquete llegue a la zona de recoleccion
@@ -167,6 +211,7 @@ class Robot(Agent):
                 self.peso_carga = content.peso
                 self.target = (9, 15)
                 self.action = "SEND"
+                self.model.liberar_espacio(self.pos)
                 break
 
     #envia un paquete por la cinta transportadora
@@ -202,7 +247,6 @@ class Robot(Agent):
         for content in contents:
             if isinstance(content, Paquete):
                 content.sig_pos = self.sig_pos
-
 
     #seleccionar la estacion mas carga y colocarla como objetivo del robot
     def selecciona_estacion_carga(self):
@@ -260,7 +304,7 @@ class Robot(Agent):
         if self.pos != self.sig_pos:
             self.movimientos += 1
             if self.carga > 0:
-                descarga = (0.1 + self.peso_carga * 0.1)*2
+                descarga = (0.1 + self.peso_carga * 0.1)
                 self.carga = round(self.carga - descarga, 2)
                 self.model.grid.move_agent(self, self.sig_pos)
                 if self.carga < 0:
