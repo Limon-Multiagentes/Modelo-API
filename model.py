@@ -35,7 +35,7 @@ class Almacen(Model):
     
     def __init__(self, M: int, N: int,
                  num_agentes: int = 5,
-                 tasa_entrada: int = 10,
+                 tasa_entrada: int = 50,
                  tasa_salida: int = 30
         ):
     
@@ -209,8 +209,8 @@ class Almacen(Model):
         ocupadas = []
 
         #seleccionar un estante de los que estan ocupados aleatoritamente
-        for i in self.FILAS_ESTANTES:
-            for j in self.COLUMNAS_ESTANTES:
+        for i in range(self.FILAS_ESTANTES):
+            for j in range(self.COLUMNAS_ESTANTES):
                 if self.espacios_almacen[i][j] == 1:
                     ocupadas.append((i, j))
 
@@ -225,23 +225,23 @@ class Almacen(Model):
             "priority": 4,
             "id": self.ordenes,
             "position": selected,
-            "action": "SEND"
+            "action": "PICKUP"
         }
         self.ordenes += 1
         self.pedirAyuda(solicitud)
 
     #retorna si todos los estantes estan llenos
     def todo_lleno(self):
-        for i in self.FILAS_ESTANTES:
-            for j in self.COLUMNAS_ESTANTES:
+        for i in range(self.FILAS_ESTANTES):
+            for j in range(self.COLUMNAS_ESTANTES):
                 if self.espacios_almacen[i][j] == 0:
                     return False
         return True
     
     #retorna si todos los estantes estan vacios
     def todo_vacio(self):
-        for i in self.FILAS_ESTANTES:
-            for j in self.COLUMNAS_ESTANTES:
+        for i in range(self.FILAS_ESTANTES):
+            for j in range(self.COLUMNAS_ESTANTES):
                 if self.espacios_almacen[i][j] == 1:
                     return False
         return True
