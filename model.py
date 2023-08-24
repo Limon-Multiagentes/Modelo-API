@@ -6,6 +6,7 @@ from itertools import chain
 
 from agents import Cinta, Estante, EstacionCarga, Celda, Robot, Paquete
 import networkx as nx
+import random
 
 class Almacen(Model):
 
@@ -16,10 +17,10 @@ class Almacen(Model):
             [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
             [2, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 4],
             [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
-            [2, 12, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 11, 4],
+            [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
             [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
             [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
-            [2, 12, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 11, 4],
+            [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
             [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
             [2, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 4],
             [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
@@ -30,7 +31,6 @@ class Almacen(Model):
     
     FILAS_ESTANTES = 4
     COLUMNAS_ESTANTES = 8
-    
 
     
     def __init__(self, M: int, N: int,
@@ -41,13 +41,14 @@ class Almacen(Model):
     
         #tasas y contadores de entrada y salida
         self.tasa_entrada = tasa_entrada
-        self.tasa_saluda = tasa_salida
+        self.tasa_salida = tasa_salida
         self.cont_entrada = tasa_entrada
         self.cont_salida = tasa_salida
 
         #cantidad de robots y paquetes
         self.num_agentes = num_agentes
         self.num_paquetes = 0
+        self.ordenes = 0
 
         #espacios de los estantes en el almacen
         self.espacios_almacen = [
@@ -77,7 +78,6 @@ class Almacen(Model):
             cinta = Cinta(int(f"{num_agentes}0{id}") + 1, self)
             self.grid.place_agent(cinta, pos)
             posiciones_disponibles.remove(pos)
-        
 
         #posiciones para los estantes
         celdas_estantes = [(i, j) for j in range(3, 13, 3) for i in chain(range(3, 7), range(9, 13))]
@@ -88,10 +88,10 @@ class Almacen(Model):
 
         #posiciones para las estaciones de carga
         celdas_cargas = [(0, 6), (0, 9), (15, 6), (15, 9)]
+        self.celdas_cargas = celdas_cargas
         for id, pos in enumerate(celdas_cargas):
             estacion = EstacionCarga(int(f"{num_agentes}2{id}") + 1, self)
             self.grid.place_agent(estacion, pos)
-            posiciones_disponibles.remove(pos)
 
         #posiciones de las celdas
         for id, pos in enumerate(posiciones_disponibles):
@@ -136,9 +136,6 @@ class Almacen(Model):
             self.scheduleRobots.add(robot)
 
       
-
-        #self.solicitudes = []
-
         #self.datacollector = DataCollector(
         #    model_reporters={"Grid": get_grid, "Cargas": get_cargas,
         #                     "CeldasSucias": get_sucias,
@@ -154,10 +151,18 @@ class Almacen(Model):
             self.instantiatePackage()
             self.cont_entrada = self.tasa_entrada
 
-        #self.datacollector.collect(self)
+        #solicitar pedidos despues de una cuenta
+        self.cont_salida -= 1
+        if self.cont_salida == 0:
+            self.realizar_pedido()
+            self.cont_salida = self.tasa_salida
+
         self.realizarSolicitudes()
         self.scheduleRobots.step()
         self.schedulePaquetes.step()
+
+        #self.datacollector.collect(self)
+
         
         #if not self.todoLimpio():
         #    sucias = self.celdasSucias()
@@ -169,6 +174,10 @@ class Almacen(Model):
          #   self.tiempo += 1
 
     def instantiatePackage(self):
+        #no ingresar paquetes si el almacen esta lleno
+        if self.todo_lleno():
+            return
+
         #crear paquete si la cinta no está llena
         should_create = True
         contents = self.grid.get_cell_list_contents((15, 0))
@@ -177,7 +186,8 @@ class Almacen(Model):
                 should_create = False
         #crear paquete
         if should_create:
-            paquete = Paquete(int(f"{self.num_agentes}4{self.num_paquetes}")+1, self)
+            peso = round(random.uniform(1, 10), 2)
+            paquete = Paquete(int(f"{self.num_agentes}4{self.num_paquetes}")+1, self, peso)
             self.num_paquetes += 1
             self.grid.place_agent(paquete, (15, 0))
             self.schedulePaquetes.add(paquete)
@@ -190,6 +200,51 @@ class Almacen(Model):
         }
         self.pedirAyuda(solicitud)
 
+    #mandar a recoger un paquete
+    def realizar_pedido(self):
+        #no hacer pedidos si el almacen esta vacio
+        if self.todo_vacio():
+            return
+        
+        ocupadas = []
+
+        #seleccionar un estante de los que estan ocupados aleatoritamente
+        for i in self.FILAS_ESTANTES:
+            for j in self.COLUMNAS_ESTANTES:
+                if self.espacios_almacen[i][j] == 1:
+                    ocupadas.append((i, j))
+
+        random_estante = random.choice(ocupadas)
+
+        #obtener su posicion
+        index = random_estante[0] * self.COLUMNAS_ESTANTES + random_estante[1]
+        selected = self.celdas_estantes[index]
+
+        #crear la solicitud
+        solicitud = {
+            "priority": 4,
+            "id": self.ordenes,
+            "position": selected,
+            "action": "SEND"
+        }
+        self.ordenes += 1
+        self.pedirAyuda(solicitud)
+
+    #retorna si todos los estantes estan llenos
+    def todo_lleno(self):
+        for i in self.FILAS_ESTANTES:
+            for j in self.COLUMNAS_ESTANTES:
+                if self.espacios_almacen[i][j] == 0:
+                    return False
+        return True
+    
+    #retorna si todos los estantes estan vacios
+    def todo_vacio(self):
+        for i in self.FILAS_ESTANTES:
+            for j in self.COLUMNAS_ESTANTES:
+                if self.espacios_almacen[i][j] == 1:
+                    return False
+        return True
 
     #calcula distancia entre 2 puntos
     def distancia_manhattan(self, pos1, pos2):
@@ -206,13 +261,20 @@ class Almacen(Model):
 
         restantes = []
 
+        print(self.solicitudes)
+
         for solicitud in self.solicitudes:
             agentes = sorted(agentes, key=lambda agente: self.distancia_manhattan(solicitud["position"], agente[1]))
+            accepted = False
             for agente in agentes:
                 result = agente[0].procesar_solicitud(solicitud)
                 if result:
+                    accepted = True
                     break
-            restantes.append(solicitud)
+            if not accepted:
+                restantes.append(solicitud)
+
+        print(restantes)
                 
         self.solicitudes = restantes
 
@@ -305,15 +367,6 @@ class Almacen(Model):
                 if isinstance(obj, Celda) and obj.sucia:
                     celdas_sucias.append(pos)
         return celdas_sucias
-    
-    #obtiene los robots de limpieza del grid
-    def getAgentes(self):
-        agentes = []
-        for (content, pos) in self.grid.coord_iter():
-            for obj in content:
-                if isinstance(obj, RobotLimpieza):
-                    agentes.append((obj, pos))
-        return agentes
 
     #obtiene las estaciones de carga del grid
     def getEstaciones(self):
@@ -345,21 +398,6 @@ def get_grid(model: Model) -> np.ndarray:
 
 def get_cargas(model: Model):
     return [(agent.unique_id, agent.carga) for agent in model.schedule.agents]
-
-
-def get_sucias(model: Model) -> int:
-    """
-    Método para determinar el número total de celdas sucias
-    :param model: Modelo Mesa
-    :return: número de celdas sucias
-    """
-    sum_sucias = 0
-    for cell in model.grid.coord_iter():
-        cell_content, pos = cell
-        for obj in cell_content:
-            if isinstance(obj, Celda) and obj.sucia:
-                sum_sucias += 1
-    return sum_sucias / model.num_celdas_sucias
 
 
 def get_movimientos(agent: Agent) -> dict:
