@@ -11,22 +11,22 @@ import random
 class Almacen(Model):
 
     DIR_POSIBLES = [
-            [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
+            [0, 1, 6, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
             [0, 1, 6, 6, 6, 6, 10, 6, 6, 6, 6, 6, 6, 6, 4, 0],
             [2, 5, 7, 7, 7, 7, 7, 9, 9, 7, 7, 7, 7, 9, 8, 4],
             [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
             [2, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 4],
-            [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
-            [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
-            [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
-            [0, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 0],
-            [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
-            [0, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 0],
+            [2, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 4],
+            [9, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 10],
+            [5, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 6],
+            [7, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 8],
+            [9, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 10],
+            [2, 5, 11, 6, 6, 6, 6, 12, 8, 6, 6, 6, 6, 12, 8, 4],
             [2, 5, 11, 7, 7, 7, 7, 5, 11, 7, 7, 7, 7, 12, 8, 4],
             [2, 5, 8, 14, 14, 14, 14, 5, 8, 14, 14, 14, 14, 5, 8, 4],
             [0, 5, 10, 6, 6, 6, 6, 10, 10, 6, 6, 6, 6, 12, 8, 0],
             [0, 2, 7, 7, 7, 7, 7, 7, 7, 9, 7, 7, 7, 7, 3, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0]
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 3, 0]
         ]
     
     FILAS_ESTANTES = 4
@@ -35,7 +35,7 @@ class Almacen(Model):
     
     def __init__(self, M: int, N: int,
                  num_agentes: int = 5,
-                 tasa_entrada: int = 50,
+                 tasa_entrada: int = 10,
                  tasa_salida: int = 30
         ):
     
@@ -245,6 +245,12 @@ class Almacen(Model):
                 if self.espacios_almacen[i][j] == 1:
                     return False
         return True
+    
+    def liberar_espacio(self, pos):
+        index = self.celdas_estantes.index(pos)
+        i = index // self.COLUMNAS_ESTANTES
+        j = index % self.COLUMNAS_ESTANTES
+        self.espacios_almacen[i][j] = 0
 
     #calcula distancia entre 2 puntos
     def distancia_manhattan(self, pos1, pos2):
@@ -261,8 +267,6 @@ class Almacen(Model):
 
         restantes = []
 
-        print(self.solicitudes)
-
         for solicitud in self.solicitudes:
             agentes = sorted(agentes, key=lambda agente: self.distancia_manhattan(solicitud["position"], agente[1]))
             accepted = False
@@ -273,8 +277,6 @@ class Almacen(Model):
                     break
             if not accepted:
                 restantes.append(solicitud)
-
-        print(restantes)
                 
         self.solicitudes = restantes
 
