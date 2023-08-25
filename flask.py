@@ -6,7 +6,7 @@ from flask import Flask, jsonify, request,json
 
 app = Flask(__name__)
 
-
+from model  import model
 
 # Testing Route
 @app.route('/')
@@ -44,6 +44,11 @@ def post_example():
 def post_example():
     data = request.json  # Assuming JSON data is being sent
     return jsonify(data), 201  # HTTP status code 201 Created
+
+@app.route('/step', methods=['POST'])
+def step_simulation():
+    model.step()
+    return jsonify(success=True)
 
 if __name__ == '__main__':
     app.run(debug=True) # opcionales , port=4000,host="0.0.0.0"
