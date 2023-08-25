@@ -14,7 +14,6 @@ def api_root():
     return 'Prueba de funcionamiento'
 
 
-
 # Gets
 @app.route('/robots', methods=['GET'])
 def numRobots():
