@@ -4,7 +4,6 @@ from mesa.space import MultiGrid
 from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 
-import numpy as np
 import networkx as nx
 import copy
 
@@ -28,24 +27,26 @@ class Paquete(Agent):
     def __init__(self, unique_id, model, peso):
         super().__init__(unique_id, model)
         self.peso = peso
+        self.model.paquetes_recibidos += 1
         
     def step(self):
-        if(self.pos in self.model.celdas_cinta):
-            self.sig_pos = (self.pos[0]-1, self.pos[1])
+        if(self.pos in self.model.celdas_cinta): #si esta sobre una cinta
+            self.sig_pos = (self.pos[0]-1, self.pos[1]) #la siguiente posicion 
             should_move = True
-            contents = self.model.grid.get_cell_list_contents(self.sig_pos)
+            contents = self.model.grid.get_cell_list_contents(self.sig_pos) #si hay un paquete en el siguiente paso no moverse
             for content in contents:
                 if isinstance(content, Paquete):
                     should_move = False
-            if should_move:
+            if should_move: #si se puede mover actualizar la posicion
                 if self.sig_pos[0] >= 0:
                     self.model.grid.move_agent(self, self.sig_pos)
-                else:
+                else: #si sale de la escena eliminar el paquete
+                    self.model.paquetes_enviados += 1
                     self.model.grid.remove_agent(self)
                     self.model.schedulePaquetes.remove(self)
             else:
                 self.sig_pos = self.pos
-        else:
+        else: #si no esta sobre una cinta se puede mover si su posicion cambia
             if self.sig_pos != self.pos:
                 self.model.grid.move_agent(self, self.sig_pos)
 
@@ -66,7 +67,6 @@ class Robot(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.sig_pos = None
-        self.movimientos = 0
         self.peso_carga = 0
         self.carga = 100
         self.target = None
@@ -275,38 +275,39 @@ class Robot(Agent):
             self.target = None
             self.updated_graph = False
 
-        if self.target:
+        if self.target: #si hay un target ir al objetivo
             self.ve_a_objetivo()
-            if self.action in ["STORE", "SEND"]:
+            if self.action in ["STORE", "SEND"]: #si va a guardar o enviar un paquete mover al paquete
                 self.mover_paquete()
-        elif self.action == "RETRIEVE":
+        elif self.action == "RETRIEVE": #esperar un paquete en la cinta transportadora
             self.espera_paquete()
-        elif self.action == "STORE":
+        elif self.action == "STORE": #guardar un paquete en un estante
             self.guardar_paquete()
-        elif self.action == "PICKUP":
+        elif self.action == "PICKUP": #recoger un paquete de un estante
             self.recoge_paquete()
-        elif self.action == "SEND":
+        elif self.action == "SEND": #enviar un paquete por la cinta transportadora de salida
             self.envia_paquete()
-        elif self.esta_cargando():
+        elif self.esta_cargando(): #cargar 
             self.cargar()
-            if self.carga == 100:
+            if self.carga == 100: #si ya se termino de cargar comienza a divagar
+                self.model.ciclos_carga +=1
                 self.action = "WANDER"
-        elif self.carga_baja() and self.action not in ["STORE", "RECEIVE", "PICKUP", "SEND"]:
+        elif self.carga_baja() and self.action not in ["STORE", "RECEIVE", "PICKUP", "SEND"]: #si tiene carga y no esta ocupado seleccionar una estacion de carga
             self.selecciona_estacion_carga()
             self.action = "CHARGE"
             self.ve_a_objetivo()
-        else:
+        else: #seleccionar una posicion
             self.seleccionar_nueva_pos()
 
+        #avanzar
         self.advance()
                 
     def advance(self):
-        if self.pos != self.sig_pos:
-            self.movimientos += 1
-            if self.carga > 0:
-                descarga = (0.1 + self.peso_carga * 0.1)
-                self.carga = round(self.carga - descarga, 2)
-                self.model.grid.move_agent(self, self.sig_pos)
-                if self.carga < 0:
-                    self.carga = 0
+        if self.pos != self.sig_pos and self.carga > 0: #si se va a mover y tiene carga
+            descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
+            self.carga = round(self.carga - descarga, 2) #redondear bateria a 2 decimales
+            self.model.movimientos += 1 
+            self.model.grid.move_agent(self, self.sig_pos) #mover al agente
+            if self.carga < 0:
+                self.carga = 0
 

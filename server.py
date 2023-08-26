@@ -22,29 +22,6 @@ def agent_portrayal(agent):
 grid = mesa.visualization.CanvasGrid(
     agent_portrayal, 16, 16, 400, 400)
 
-"""
-chart_celdas = mesa.visualization.ChartModule(
-    [{"Label": "CeldasSucias", "Color": '#36A2EB', "label": "Celdas Sucias"}],
-    50, 200,
-    data_collector_name="datacollector"
-)
-chart_carga = mesa.visualization.ChartModule(
-    [{"Label": "Carga", "Color": '#8D6BD5', "label": "Carga"}],
-    50, 200,
-    data_collector_name="datacollector"
-)
-chart_tiempo = mesa.visualization.ChartModule(
-    [{"Label": "Tiempo", "Color": '#34BA89', "label": "Tiempo"}],
-    50, 200,
-    data_collector_name="datacollector"
-)
-chart_movimientos = mesa.visualization.ChartModule(
-    [{"Label": "Movimiento", "Color": '#F59F3D', "label": "Movimiento"}],
-    50, 200,
-    data_collector_name="datacollector"
-)
-"""
-
 model_params = {
     "num_agentes": mesa.visualization.Slider(
         "Número de Robots",
@@ -56,10 +33,7 @@ model_params = {
     ),
     'M': 16,
     'N': 16
-
 }
-
-
 
 server = mesa.visualization.ModularServer(
     Almacen, [grid],

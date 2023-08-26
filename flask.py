@@ -6,44 +6,78 @@ from flask import Flask, jsonify, request,json
 
 app = Flask(__name__)
 
+from model import Almacen
 
-
-# Testing Route
-@app.route('/')
-def api_root():
-    return 'Prueba de funcionamiento'
-
+modelAlmacen = Almacen(16, 16)
 
 
 # Gets
+# retornar una lista con los datos de los robots
 @app.route('/robots', methods=['GET'])
 def numRobots():
-    return jsonify(robots),200
+    global modelAlmacen
+    robots = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "action": agent.action, "carga": agent.carga} for agent in modelAlmacen.scheduleRobots.agents]
+    return jsonify(robots)
 
+# retornar una lista con los datos de los paquetes
 @app.route('/paquetes', methods=['GET'])
 def numRobots():
-    return jsonify(paquetes),200
+    global modelAlmacen
+    paquetes = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "peso": agent.peso} for agent in modelAlmacen.schedulePaquetes.agents]
+    return jsonify(paquetes)
 
-@app.route('/coordenadas', methods=['GET'])
-def numRobots():
-    return jsonify(coordenadas),200
+#retornar los datos para las graficas
+@app.route('/data', methods=['GET'])
+def data():
+    global modelAlmacen
+    movimientos = modelAlmacen.datacollector.get_model_vars_dataframe()["Movimientos"]
+    paquetesRecibidos = modelAlmacen.datacollector.get_model_vars_dataframe()["PaquetesRecibidos"]
+    paquetesEnviados = modelAlmacen.datacollector.get_model_vars_dataframe()["PaquetesEnviados"]
+    ciclosCarga = modelAlmacen.datacollector.get_model_vars_dataframe()["CiclosCarga"]
+    return jsonify({
+        "movimientos": movimientos,
+        "paquetes_recibidos": paquetesRecibidos,
+        "paquetes_enviados": paquetesEnviados,
+        "ciclos_carga": ciclosCarga
+    })
 
 #post
 
-@app.route('/numRobots', methods=['POST'])
-def post_example():
-    data = request.json  # Assuming JSON data is being sent
-    return jsonify(data), 201  # HTTP status code 201 Created
+# iniciar modelo
+@app.route('/init', methods=["POST"])
+def init_model():
+    global modelAlmacen
+    modelAlmacen = Almacen(16, 16)
+    return jsonify({"response": "OK"})
 
-@app.route('/tasaPaquetes', methods=['POST'])
-def post_example():
-    data = request.json  # Assuming JSON data is being sent
-    return jsonify(data), 201  # HTTP status code 201 Created
+# avanzar un paso
+@app.route('/step', methods=['POST'])
+def step_simulation():
+    global modelAlmacen
+    modelAlmacen.step()
+    return jsonify({"response": "OK"})
 
-@app.route('/pararSimulacion', methods=['POST'])
-def post_example():
+# cambiar numero de robots
+@app.route('/params', methods=['POST'])
+def post_params():
+    global modelAlmacen
     data = request.json  # Assuming JSON data is being sent
-    return jsonify(data), 201  # HTTP status code 201 Created
+    modelAlmacen.reset(data["numRobots"], data["tasaEntrada"], data["tasaSalida"])
+    return jsonify({"response": "OK"})  # HTTP status code 201 Created
+
+# detener el modelo
+@app.route('/stop', methods=['POST'])
+def stop_simulation():
+    global modelAlmacen
+    modelAlmacen.parar_modelo()
+    return jsonify({"response": "OK"}) # HTTP status code 201 Created
+
+# reanudar el modelo
+@app.route('/continue', methods=['POST'])
+def continue_simulation():
+    global modelAlmacen
+    modelAlmacen.reanudar_modelo()
+    return jsonify({"response": "OK"}) # HTTP status code 201 Created
 
 if __name__ == '__main__':
-    app.run(debug=True) # opcionales , port=4000,host="0.0.0.0"
+    app.run(debug=True, port=4000) # opcionales , port=4000,host="0.0.0.0"

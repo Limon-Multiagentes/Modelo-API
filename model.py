@@ -34,11 +34,16 @@ class Almacen(Model):
 
     
     def __init__(self, M: int, N: int,
-                 num_agentes: int = 5,
+                 num_agentes: int = 4,
                  tasa_entrada: int = 10,
                  tasa_salida: int = 30
         ):
+        self.width = M
+        self.height = N
+        self.reset(num_agentes, tasa_entrada, tasa_salida)
     
+        
+    def reset(self, num_agentes, tasa_entrada, tasa_salida):
         #tasas y contadores de entrada y salida
         self.tasa_entrada = tasa_entrada
         self.tasa_salida = tasa_salida
@@ -58,44 +63,65 @@ class Almacen(Model):
             [0, 0, 0, 0, 0, 0, 0, 0]
         ]
 
+        #variables a analizar
+        self.movimientos = 0
+        self.paquetes_recibidos = 0
+        self.paquetes_enviados = 0
+        self.ciclos_carga = 0
+
         #solicitudes a los robots
         self.solicitudes = []
 
         #grafo para busqueda de trayectorias optimas
         self.graph = self.creaGrafo()
 
-        self.grid = MultiGrid(M, N,False)
+        self.grid = MultiGrid(self.width, self.height,False)
         self.scheduleRobots = RandomActivation(self)
         self.schedulePaquetes = RandomActivation(self)
 
         #posiciones disponibles del grid
-        posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
+        self.posiciones_disponibles = [pos for _, pos in self.grid.coord_iter()]
 
+        self.colocar_cintas()
+        self.colocar_estantes()
+        self.colocar_celdas_carga()
+        self.colocar_celdas()
+        self.colocar_robots()
+
+        self.running = True
+      
+        self.datacollector = DataCollector(
+            model_reporters={"Movimientos": "movimientos",
+                             "PaquetesRecibidos": "paquetes_recibidos",
+                             "PaquetesEnviados": "paquetes_enviados",
+                             "CiclosCarga": "ciclos_carga"})
+    
+    def colocar_cintas(self):
         #posiciones para las cintas
-        celdas_cinta = [(i, 15) for i in range(9)] + [(i, 0) for i in range(7, 16)] 
-        self.celdas_cinta = celdas_cinta
-        for id, pos in enumerate(celdas_cinta):
-            cinta = Cinta(int(f"{num_agentes}0{id}") + 1, self)
+        self.celdas_cinta = [(i, 15) for i in range(9)] + [(i, 0) for i in range(7, 16)] 
+        for id, pos in enumerate(self.celdas_cinta):
+            cinta = Cinta(int(f"{self.num_agentes}0{id}") + 1, self)
             self.grid.place_agent(cinta, pos)
-            posiciones_disponibles.remove(pos)
+            self.posiciones_disponibles.remove(pos)
 
-        #posiciones para los estantes
-        celdas_estantes = [(i, j) for j in range(3, 13, 3) for i in chain(range(3, 7), range(9, 13))]
-        self.celdas_estantes = celdas_estantes
-        for id, pos in enumerate(celdas_estantes):
-            estante = Estante(int(f"{num_agentes}1{id}") + 1, self)
+    def colocar_estantes(self):
+         #posiciones para los estantes
+        self.celdas_estantes = [(i, j) for j in range(3, 13, 3) for i in chain(range(3, 7), range(9, 13))]
+        for id, pos in enumerate(self.celdas_estantes):
+            estante = Estante(int(f"{self.num_agentes}1{id}") + 1, self)
             self.grid.place_agent(estante, pos)
 
+    def colocar_celdas_carga(self):
         #posiciones para las estaciones de carga
-        celdas_cargas = [(0, 6), (0, 9), (15, 6), (15, 9)]
-        self.celdas_cargas = celdas_cargas
-        for id, pos in enumerate(celdas_cargas):
-            estacion = EstacionCarga(int(f"{num_agentes}2{id}") + 1, self)
+        self.celdas_cargas = [(0, 6), (0, 9), (15, 6), (15, 9)]
+        for id, pos in enumerate(self.celdas_cargas):
+            estacion = EstacionCarga(int(f"{self.num_agentes}2{id}") + 1, self)
             self.grid.place_agent(estacion, pos)
 
+    def colocar_celdas(self): 
         #posiciones de las celdas
-        for id, pos in enumerate(posiciones_disponibles):
-            celda = Celda(int(f"{num_agentes}{id}") + 1, self)
+        for id, pos in enumerate(self.posiciones_disponibles):
+            celda = Celda(int(f"{self.num_agentes}{id}") + 1, self)
             dirs = self.DIR_POSIBLES[pos[1]][pos[0]]
             if dirs == 1:
                 celda.directions = ["up"]
@@ -126,52 +152,36 @@ class Almacen(Model):
             elif dirs == 14:
                 celda.directions = ["up", "down"]
             self.grid.place_agent(celda, pos)
-            
+
+    def colocar_robots(self):
         #posiciones de los robots
         pos_robots = [(0, 2), (15, 2), (0, 3), (15, 3), (0, 4), (15, 4), (0, 11), (15, 11), (0, 12), (15, 12)]
-        pos_robots = pos_robots[:num_agentes]
+        pos_robots = pos_robots[:self.num_agentes]
         for id, pos in enumerate(pos_robots):
-            robot = Robot(int(f"{num_agentes}3{id}") + 1, self)
+            robot = Robot(int(f"{self.num_agentes}3{id}") + 1, self)
             self.grid.place_agent(robot, pos)
             self.scheduleRobots.add(robot)
 
-      
-        #self.datacollector = DataCollector(
-        #    model_reporters={"Grid": get_grid, "Cargas": get_cargas,
-        #                     "CeldasSucias": get_sucias,
-        #                     "Tiempo": "tiempo",
-        #                     "Movimiento": "movimiento",
-        #                     "Carga": "cantidadCarga"})
-        
 
     def step(self):
-        #instanciar paquetes despues de una cuenta
-        self.cont_entrada -= 1
-        if self.cont_entrada == 0:
-            self.instantiatePackage()
-            self.cont_entrada = self.tasa_entrada
+        if self.running:
+            #instanciar paquetes despues de una cuenta
+            self.cont_entrada -= 1
+            if self.cont_entrada == 0:
+                self.instantiatePackage()
+                self.cont_entrada = self.tasa_entrada
 
-        #solicitar pedidos despues de una cuenta
-        self.cont_salida -= 1
-        if self.cont_salida == 0:
-            self.realizar_pedido()
-            self.cont_salida = self.tasa_salida
+            #solicitar pedidos despues de una cuenta
+            self.cont_salida -= 1
+            if self.cont_salida == 0:
+                self.realizar_pedido()
+                self.cont_salida = self.tasa_salida
 
-        self.realizarSolicitudes()
-        self.scheduleRobots.step()
-        self.schedulePaquetes.step()
+            self.realizarSolicitudes()
+            self.scheduleRobots.step()
+            self.schedulePaquetes.step()
 
-        #self.datacollector.collect(self)
-
-        
-        #if not self.todoLimpio():
-        #    sucias = self.celdasSucias()
-        #    sucias_sel = self.random.sample(sucias, k=min(len(sucias), self.num_agentes))
-        #    for celda in sucias_sel:
-        #        self.pedirAyuda(celda, 1)   
-
-        #    self.realizarSolicitudes()
-         #   self.tiempo += 1
+            self.datacollector.collect(self)
 
     def instantiatePackage(self):
         #no ingresar paquetes si el almacen esta lleno
@@ -351,34 +361,13 @@ class Almacen(Model):
 
         nx.set_edge_attributes(G, {e: 1 for e in G.edges()}, "cost")
         return G
-
-    '''
-    #determina si todas las celdas estan limpias
-    def todoLimpio(self):
-        for (content, pos) in self.grid.coord_iter():
-            for obj in content:
-                if isinstance(obj, Celda) and obj.sucia:
-                    return False
-        return True 
     
-    #determinar las celdas sucias
-    def celdasSucias(self):
-        celdas_sucias = []
-        for(content, pos) in self.grid.coord_iter():
-            for obj in content:
-                if isinstance(obj, Celda) and obj.sucia:
-                    celdas_sucias.append(pos)
-        return celdas_sucias
+    def parar_modelo(self):
+        self.running = False
 
-    #obtiene las estaciones de carga del grid
-    def getEstaciones(self):
-        estaciones = []
-        for (content, pos) in self.grid.coord_iter():
-            for obj in content:
-                if isinstance(obj, EstacionCarga):
-                    estaciones.append(pos)
-        return estaciones
-
+    def reanudar_modelo(self):
+        self.running = True
+   
 
 def get_grid(model: Model) -> np.ndarray:
     """
@@ -391,7 +380,7 @@ def get_grid(model: Model) -> np.ndarray:
         cell_content, pos = cell
         x, y = pos
         for obj in cell_content:
-            if isinstance(obj, RobotLimpieza):
+            if isinstance(obj, Robot):
                 grid[x][y] = 2
             elif isinstance(obj, Celda):
                 grid[x][y] = int(obj.sucia)
@@ -407,4 +396,3 @@ def get_movimientos(agent: Agent) -> dict:
         return {agent.unique_id: agent.movimientos}
     # else:
     #    return 0
-'''
