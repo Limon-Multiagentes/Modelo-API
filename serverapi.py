@@ -2,7 +2,7 @@
 
 # usar pip install flask
 # usar pip install flask_cors
-from flask import Flask, jsonify, request,json
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
@@ -21,7 +21,7 @@ def numRobots():
 
 # retornar una lista con los datos de los paquetes
 @app.route('/paquetes', methods=['GET'])
-def numRobots():
+def numPaquetes():
     global modelAlmacen
     paquetes = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "peso": agent.peso} for agent in modelAlmacen.schedulePaquetes.agents]
     return jsonify(paquetes)
@@ -30,16 +30,8 @@ def numRobots():
 @app.route('/data', methods=['GET'])
 def data():
     global modelAlmacen
-    movimientos = modelAlmacen.datacollector.get_model_vars_dataframe()["Movimientos"]
-    paquetesRecibidos = modelAlmacen.datacollector.get_model_vars_dataframe()["PaquetesRecibidos"]
-    paquetesEnviados = modelAlmacen.datacollector.get_model_vars_dataframe()["PaquetesEnviados"]
-    ciclosCarga = modelAlmacen.datacollector.get_model_vars_dataframe()["CiclosCarga"]
-    return jsonify({
-        "movimientos": movimientos,
-        "paquetes_recibidos": paquetesRecibidos,
-        "paquetes_enviados": paquetesEnviados,
-        "ciclos_carga": ciclosCarga
-    })
+    dict = modelAlmacen.datacollector.get_model_vars_dataframe().to_dict()
+    return jsonify(dict)
 
 #post
 
@@ -47,7 +39,8 @@ def data():
 @app.route('/init', methods=["POST"])
 def init_model():
     global modelAlmacen
-    modelAlmacen = Almacen(16, 16)
+    data = request.json  # Assuming JSON data is being sent
+    modelAlmacen = Almacen(16, 16, data["numRobots"], data["tasaEntrada"], data["tasaSalida"])
     return jsonify({"response": "OK"})
 
 # avanzar un paso

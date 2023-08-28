@@ -369,30 +369,3 @@ class Almacen(Model):
         self.running = True
    
 
-def get_grid(model: Model) -> np.ndarray:
-    """
-    Método para la obtención de la grid y representarla en un notebook
-    :param model: Modelo (entorno)
-    :return: grid
-    """
-    grid = np.zeros((model.grid.width, model.grid.height))
-    for cell in model.grid.coord_iter():
-        cell_content, pos = cell
-        x, y = pos
-        for obj in cell_content:
-            if isinstance(obj, Robot):
-                grid[x][y] = 2
-            elif isinstance(obj, Celda):
-                grid[x][y] = int(obj.sucia)
-    return grid
-
-
-def get_cargas(model: Model):
-    return [(agent.unique_id, agent.carga) for agent in model.schedule.agents]
-
-
-def get_movimientos(agent: Agent) -> dict:
-    if isinstance(agent, RobotLimpieza):
-        return {agent.unique_id: agent.movimientos}
-    # else:
-    #    return 0
