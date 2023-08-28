@@ -37,5 +37,5 @@ model_params = {
 
 server = mesa.visualization.ModularServer(
     Almacen, [grid],
-    "botCleaner", model_params, 8521
+    "almacenRobots", model_params, 8521
 )
