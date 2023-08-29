@@ -7,6 +7,35 @@ from agents import Cinta, Estante, EstacionCarga, Celda, Robot, Paquete
 import networkx as nx
 import random
 
+def detectar_robots(model):
+            robot_positions = [(agent.pos[0], agent.pos[1]) for agent in model.scheduleRobots.agents]
+            
+            rows = {}
+            columns = {}
+            
+            for position in robot_positions:
+                row, column = position
+                if row in rows:
+                    rows[row] += 1
+                else:
+                    rows[row] = 1
+                
+                if column in columns:
+                    columns[column] += 1
+                else:
+                    columns[column] = 1
+            
+            # Verificar si hay 2 o más robots en la misma fila o columna
+            for count in rows.values():
+                if count >= 2:
+                    return 1
+            
+            for count in columns.values():
+                if count >= 2:
+                    return 1
+            
+            return 0
+        
 # Creacion del modelo a utilizar
 class Almacen(Model):
     # Aqui definimos todas las posiciones del almacen que pueden hacer , es decir, subir o bajar o moverse de izquierda o derecha
@@ -96,6 +125,8 @@ class Almacen(Model):
                              "PaquetesRecibidos": "paquetes_recibidos",
                              "PaquetesEnviados": "paquetes_enviados",
                              "CiclosCarga": "ciclos_carga"})
+    
+
     
     # Colocamos la cintas en determinadas posciones
     def colocar_cintas(self):
@@ -187,8 +218,10 @@ class Almacen(Model):
             self.realizarSolicitudes()
             self.scheduleRobots.step()
             self.schedulePaquetes.step()
-
             self.datacollector.collect(self)
+            
+            robots_result = detectar_robots(self)
+            print(robots_result)
 
     # Checamos si el almacen esta lleno
     def instantiatePackage(self):
@@ -377,5 +410,7 @@ class Almacen(Model):
     # Se ha reanudo el modelo
     def reanudar_modelo(self):
         self.running = True
-   
+    
+    
+
 

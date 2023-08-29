@@ -62,7 +62,7 @@ class Cinta(Agent):
 
 # Aqui definimos la clase Robot
 class Robot(Agent):    
-
+    #Aqui son los posibles movimientos que puede hacer los robots
     dirMovs = {
         "right": (1, 0),
         "left": (-1, 0),
@@ -70,14 +70,14 @@ class Robot(Agent):
         "up": (0, 1), 
     }
 
+    # Constructor de la clase Robor le entregamos su siguiente posicion que peso lleva, su carga de bateria, que objetivo tiene, que accion lleva es decir si va divagando o tiene algo fijo , camino recorrido y grafo actualizado
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.sig_pos = None
         self.peso_carga = 0
         self.carga = 100
         self.target = None
-        self.action = "WANDER"
-
+        self.action = "WANDER" # El robot va divagando no sabe lo que hace
         self.path = []
         self.updated_graph = False
 
@@ -317,3 +317,4 @@ class Robot(Agent):
             if self.carga < 0:
                 self.carga = 0
 
+   
