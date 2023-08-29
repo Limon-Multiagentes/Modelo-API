@@ -27,23 +27,39 @@ class Paquete(Agent):
     def __init__(self, unique_id, model, peso):
         super().__init__(unique_id, model)
         self.peso = peso
+        self.surface = "Cinta" #superficie en que esta el paquete, usada por Unity
         self.model.paquetes_recibidos += 1
         
     def step(self):
         if(self.pos in self.model.celdas_cinta): #si esta sobre una cinta
+
             self.sig_pos = (self.pos[0]-1, self.pos[1]) #la siguiente posicion 
+
+            if self.sig_pos[0] < 0: #si sale de la escena eliminar el paquete
+                self.model.paquetes_enviados += 1
+                self.model.grid.remove_agent(self)
+                self.model.schedulePaquetes.remove(self)
+
             should_move = True
-            contents = self.model.grid.get_cell_list_contents(self.sig_pos) #si hay un paquete en el siguiente paso no moverse
+
+            #condiciones para no moverse
+            #si hay un paquete en la siguiente celda no moverse
+            contents = self.model.grid.get_cell_list_contents(self.sig_pos) 
             for content in contents:
                 if isinstance(content, Paquete):
                     should_move = False
+
+            if self.sig_pos not in self.model.celdas_cinta: #si deja la cinta si no hay un robot esperando en la siguiente celda no moverse
+                contents = self.model.grid.get_cell_list_contents(self.sig_pos)
+                is_robot_waiting = False
+                for content in contents:
+                    if isinstance(content, Robot):
+                        is_robot_waiting = True
+                if not is_robot_waiting:
+                    should_move = False
+            
             if should_move: #si se puede mover actualizar la posicion
-                if self.sig_pos[0] >= 0:
-                    self.model.grid.move_agent(self, self.sig_pos)
-                else: #si sale de la escena eliminar el paquete
-                    self.model.paquetes_enviados += 1
-                    self.model.grid.remove_agent(self)
-                    self.model.schedulePaquetes.remove(self)
+                self.model.grid.move_agent(self, self.sig_pos)
             else:
                 self.sig_pos = self.pos
         else: #si no esta sobre una cinta se puede mover si su posicion cambia
@@ -196,12 +212,18 @@ class Robot(Agent):
             if isinstance(content, Paquete):
                 self.peso_carga = content.peso
                 self.solicitar_espacio_guardar()
+                content.surface = "Robot"
                 break
 
     #guardar el paquete en el estante
     def guardar_paquete(self):
         self.peso_carga = 0
         self.action = "WANDER"
+        contents = self.model.grid.get_cell_list_contents(self.pos)
+        for content in contents:
+            if isinstance(content, Paquete):
+                content.surface = "Estante"
+                break
 
     #recoge un paquete de un estante
     def recoge_paquete(self):
@@ -212,6 +234,7 @@ class Robot(Agent):
                 self.target = (9, 15)
                 self.action = "SEND"
                 self.model.liberar_espacio(self.pos)
+                content.surface = "Robot"
                 break
 
     #envia un paquete por la cinta transportadora
@@ -220,6 +243,7 @@ class Robot(Agent):
         for content in contents:
             if isinstance(content, Paquete):
                 content.sig_pos = (self.pos[0]-1, self.pos[1])
+                content.surface = "Cinta"
                 self.peso_carga = 0
                 self.action = "WANDER"
 
