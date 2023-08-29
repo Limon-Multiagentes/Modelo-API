@@ -1,34 +1,38 @@
+# Importacion de librerias a utilizat
 from mesa.model import Model
 from mesa.agent import Agent
 from mesa.space import MultiGrid
 from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
-
 import networkx as nx
 import copy
 
-
+# Aqui declaramos la celda y que direcciones puede tener
 class Celda(Agent):
     DIRECTIONS = ['right', 'down', 'left', 'up']
 
     def __init__(self, unique_id, model, directions=[]):
         super().__init__(unique_id, model)
         self.directions = directions
-
+        
+# Clase estante donde se guardar las cajas
 class Estante(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
+# Clase estacion de carga en esta estacion es donde se carga la pila de los robots
 class EstacionCarga(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
+# Definimos una clase paquete que nos va a indicar que peso tiene el paquete y paquetes_recibidos nos sirve para conocer la cantidad de paquetes recibidos y mostrarlos de forma grafica  
 class Paquete(Agent):
     def __init__(self, unique_id, model, peso):
         super().__init__(unique_id, model)
         self.peso = peso
         self.model.paquetes_recibidos += 1
-        
+    
+    # Aqui nos sirve para checar si la caje esta sobre una cinta o un robot y en que posicion se encuentra 
     def step(self):
         if(self.pos in self.model.celdas_cinta): #si esta sobre una cinta
             self.sig_pos = (self.pos[0]-1, self.pos[1]) #la siguiente posicion 
@@ -51,10 +55,12 @@ class Paquete(Agent):
                 self.model.grid.move_agent(self, self.sig_pos)
 
 
+# Aqui definimos la clase cinta
 class Cinta(Agent):
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
 
+# Aqui definimos la clase Robot
 class Robot(Agent):    
 
     dirMovs = {

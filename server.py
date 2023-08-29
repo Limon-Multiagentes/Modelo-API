@@ -1,8 +1,9 @@
 import mesa
-
 from model import Almacen
 from agents import Cinta, Estante, EstacionCarga, Robot, Paquete
 
+# Aqui simulamos la grafico del funcionamiento de los robots
+# NOTA: No es la solucion final solo nos sirve para ver como se comporta el modelo multiagente 
 MAX_NUMBER_ROBOTS = 10
 
 
