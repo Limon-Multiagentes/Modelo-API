@@ -309,6 +309,7 @@ class Robot(Agent):
         self.advance()
                 
     def advance(self):
+        
         if self.pos != self.sig_pos and self.carga > 0: #si se va a mover y tiene carga
             descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
             self.carga = round(self.carga - descarga, 2) #redondear bateria a 2 decimales

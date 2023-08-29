@@ -7,34 +7,7 @@ from agents import Cinta, Estante, EstacionCarga, Celda, Robot, Paquete
 import networkx as nx
 import random
 
-def detectar_robots(model):
-            robot_positions = [(agent.pos[0], agent.pos[1]) for agent in model.scheduleRobots.agents]
-            
-            rows = {}
-            columns = {}
-            
-            for position in robot_positions:
-                row, column = position
-                if row in rows:
-                    rows[row] += 1
-                else:
-                    rows[row] = 1
-                
-                if column in columns:
-                    columns[column] += 1
-                else:
-                    columns[column] = 1
-            
-            # Verificar si hay 2 o más robots en la misma fila o columna
-            for count in rows.values():
-                if count >= 2:
-                    return 1
-            
-            for count in columns.values():
-                if count >= 2:
-                    return 1
-            
-            return 0
+
         
 # Creacion del modelo a utilizar
 class Almacen(Model):
@@ -220,7 +193,7 @@ class Almacen(Model):
             self.schedulePaquetes.step()
             self.datacollector.collect(self)
             
-            robots_result = detectar_robots(self)
+            robots_result = self.detectar_robots()
             print(robots_result)
 
     # Checamos si el almacen esta lleno
@@ -411,6 +384,31 @@ class Almacen(Model):
     def reanudar_modelo(self):
         self.running = True
     
-    
-
-
+    def detectar_robots(self):
+            robot_positions = [(agent.pos[0], agent.pos[1]) for agent in self.scheduleRobots.agents]
+            
+            rows = {}
+            columns = {}
+            
+            for position in robot_positions:
+                row, column = position
+                if row in rows:
+                    rows[row] += 1
+                else:
+                    rows[row] = 1
+                
+                if column in columns:
+                    columns[column] += 1
+                else:
+                    columns[column] = 1
+            
+            # Verificar si hay 2 o más robots en la misma fila o columna
+            for count in rows.values():
+                if count >= 2:
+                    return 1
+            
+            for count in columns.values():
+                if count >= 2:
+                    return 1
+            
+            return 0
