@@ -3,13 +3,13 @@ from mesa.time import RandomActivation
 from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 from itertools import chain
-
 from agents import Cinta, Estante, EstacionCarga, Celda, Robot, Paquete
 import networkx as nx
 import random
 
+# Creacion del modelo a utilizar
 class Almacen(Model):
-
+    # Aqui definimos todas las posiciones del almacen que pueden hacer , es decir, subir o bajar o moverse de izquierda o derecha
     DIR_POSIBLES = [
             [0, 1, 6, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0], 
             [0, 1, 6, 6, 6, 6, 10, 6, 6, 6, 6, 6, 6, 6, 4, 0],
@@ -28,11 +28,11 @@ class Almacen(Model):
             [0, 2, 7, 7, 7, 7, 7, 7, 7, 9, 7, 7, 7, 7, 3, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 3, 0]
         ]
-    
+    # Aqui definimos la cantidad de filas y columnas
     FILAS_ESTANTES = 4
     COLUMNAS_ESTANTES = 8
 
-    
+    # Aqui definimos el contrusctor del modelo y le damos parametros de entrada
     def __init__(self, M: int, N: int,
                  num_agentes: int = 4,
                  tasa_entrada: int = 10,
@@ -42,7 +42,7 @@ class Almacen(Model):
         self.height = N
         self.reset(num_agentes, tasa_entrada, tasa_salida)
     
-        
+    # Reset es el encargado de reiniciarlizar el modelo en caso de que se reinicie
     def reset(self, num_agentes, tasa_entrada, tasa_salida):
         #tasas y contadores de entrada y salida
         self.tasa_entrada = tasa_entrada
@@ -89,13 +89,15 @@ class Almacen(Model):
         self.colocar_robots()
 
         self.running = True
-      
+
+        # Esto lo que hace es pasarle toda la informacion que necesitamos para hacer las graficas
         self.datacollector = DataCollector(
             model_reporters={"Movimientos": "movimientos",
                              "PaquetesRecibidos": "paquetes_recibidos",
                              "PaquetesEnviados": "paquetes_enviados",
                              "CiclosCarga": "ciclos_carga"})
     
+    # Colocamos la cintas en determinadas posciones
     def colocar_cintas(self):
         #posiciones para las cintas
         self.celdas_cinta = [(i, 15) for i in range(9)] + [(i, 0) for i in range(7, 16)] 
@@ -104,6 +106,7 @@ class Almacen(Model):
             self.grid.place_agent(cinta, pos)
             self.posiciones_disponibles.remove(pos)
 
+    # Aqui definimos una funcion para colocar los estantes 
     def colocar_estantes(self):
          #posiciones para los estantes
         self.celdas_estantes = [(i, j) for j in range(3, 13, 3) for i in chain(range(3, 7), range(9, 13))]
@@ -111,6 +114,7 @@ class Almacen(Model):
             estante = Estante(int(f"{self.num_agentes}1{id}") + 1, self)
             self.grid.place_agent(estante, pos)
 
+    # Colocamos las celdas en determinadas posciones
     def colocar_celdas_carga(self):
         #posiciones para las estaciones de carga
         self.celdas_cargas = [(0, 6), (0, 9), (15, 6), (15, 9)]
@@ -118,6 +122,7 @@ class Almacen(Model):
             estacion = EstacionCarga(int(f"{self.num_agentes}2{id}") + 1, self)
             self.grid.place_agent(estacion, pos)
 
+    # Definimos en que posicion se puede mover la celda
     def colocar_celdas(self): 
         #posiciones de las celdas
         for id, pos in enumerate(self.posiciones_disponibles):
@@ -153,6 +158,7 @@ class Almacen(Model):
                 celda.directions = ["up", "down"]
             self.grid.place_agent(celda, pos)
 
+    #Colocamos los robots en determinadas posiciones
     def colocar_robots(self):
         #posiciones de los robots
         pos_robots = [(0, 2), (15, 2), (0, 3), (15, 3), (0, 4), (15, 4), (0, 11), (15, 11), (0, 12), (15, 12)]
@@ -163,6 +169,7 @@ class Almacen(Model):
             self.scheduleRobots.add(robot)
 
 
+    # aqui vemos si el modelo esta corriendo 
     def step(self):
         if self.running:
             #instanciar paquetes despues de una cuenta
@@ -183,6 +190,7 @@ class Almacen(Model):
 
             self.datacollector.collect(self)
 
+    # Checamos si el almacen esta lleno
     def instantiatePackage(self):
         #no ingresar paquetes si el almacen esta lleno
         if self.todo_lleno():
@@ -362,9 +370,11 @@ class Almacen(Model):
         nx.set_edge_attributes(G, {e: 1 for e in G.edges()}, "cost")
         return G
     
+    # Se ha parado el modelo
     def parar_modelo(self):
         self.running = False
 
+    # Se ha reanudo el modelo
     def reanudar_modelo(self):
         self.running = True
    
