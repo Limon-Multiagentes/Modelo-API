@@ -53,6 +53,11 @@ class Paquete(Agent):
                 if isinstance(content, Paquete):
                     should_move = False
 
+            #si no se debe mover retornar
+            if not should_move:
+                self.sig_pos = self.pos
+                return
+
             if self.sig_pos not in self.model.celdas_cinta: #si deja la cinta si no hay un robot esperando en la siguiente celda no moverse
                 contents = self.model.grid.get_cell_list_contents(self.sig_pos)
                 is_robot_waiting = False
@@ -61,6 +66,9 @@ class Paquete(Agent):
                         is_robot_waiting = True
                 if not is_robot_waiting:
                     should_move = False
+                else: # actualizar la superficie si se debe mover
+                    self.surface = "Robot" 
+
             
             if should_move: #si se puede mover actualizar la posicion
                 self.model.grid.move_agent(self, self.sig_pos)
@@ -68,6 +76,18 @@ class Paquete(Agent):
                 self.sig_pos = self.pos
         else: #si no esta sobre una cinta se puede mover si su posicion cambia
             if self.sig_pos != self.pos:
+
+                #revisar el contenido de la siguiente celda para actualizar la superificie
+                contents = self.model.grid.get_cell_list_contents(self.sig_pos)
+                for content in contents:
+                    if isinstance(content, Robot):
+                        self.surface = "Robot"
+                    elif isinstance(content, Estante):
+                        self.surface = "Estante"
+                        break
+                    elif isinstance(content, Cinta):
+                        self.surface = "Cinta"
+
                 self.model.grid.move_agent(self, self.sig_pos)
 
 
@@ -218,7 +238,6 @@ class Robot(Agent):
             if isinstance(content, Paquete):
                 self.peso_carga = content.peso
                 self.solicitar_espacio_guardar()
-                content.surface = "Robot"
                 break
 
     #guardar el paquete en el estante
@@ -226,10 +245,6 @@ class Robot(Agent):
         self.peso_carga = 0
         self.action = "WANDER"
         contents = self.model.grid.get_cell_list_contents(self.pos)
-        for content in contents:
-            if isinstance(content, Paquete):
-                content.surface = "Estante"
-                break
 
     #recoge un paquete de un estante
     def recoge_paquete(self):
@@ -240,7 +255,6 @@ class Robot(Agent):
                 self.target = (9, 15)
                 self.action = "SEND"
                 self.model.liberar_espacio(self.pos)
-                content.surface = "Robot"
                 break
 
     #envia un paquete por la cinta transportadora
@@ -249,7 +263,6 @@ class Robot(Agent):
         for content in contents:
             if isinstance(content, Paquete):
                 content.sig_pos = (self.pos[0]-1, self.pos[1])
-                content.surface = "Cinta"
                 self.peso_carga = 0
                 self.action = "WANDER"
 
