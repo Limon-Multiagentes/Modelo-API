@@ -332,7 +332,7 @@ class Robot(Agent):
 
     #regresa si la carga está baja
     def carga_baja(self):
-        return self.carga <= 25
+        return self.carga <= 50
 
     #regresa si el robot está cargando
     def esta_cargando(self):
