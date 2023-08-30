@@ -98,7 +98,7 @@ class Cinta(Agent):
 
 # Aqui definimos la clase Robot
 class Robot(Agent):    
-
+    #Aqui son los posibles movimientos que puede hacer los robots
     dirMovs = {
         "right": (1, 0),
         "left": (-1, 0),
@@ -106,14 +106,14 @@ class Robot(Agent):
         "up": (0, 1), 
     }
 
+    # Constructor de la clase Robor le entregamos su siguiente posicion que peso lleva, su carga de bateria, que objetivo tiene, que accion lleva es decir si va divagando o tiene algo fijo , camino recorrido y grafo actualizado
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
         self.sig_pos = None
         self.peso_carga = 0
         self.carga = 100
         self.target = None
-        self.action = "WANDER"
-
+        self.action = "WANDER" # El robot va divagando no sabe lo que hace
         self.path = []
         self.updated_graph = False
 
@@ -175,13 +175,45 @@ class Robot(Agent):
                 self.sig_pos = self.pos
                 return
 
+        #eliminar la primera celda del camino, dado que es la celda actual
+        self.path.pop(0)
+
         #si no hay celdas disponibles se queda en la misma posicion
         if(len(self.path) == 0):
           self.sig_pos = self.pos
           return
         
-        self.path.pop(0)
-        self.sig_pos = self.path[0]
+        avanza = self.num_avanzar(self.pos, self.path)
+        
+        if(avanza == 1):
+            self.sig_pos = self.path[0]
+            self.path.pop(0)
+        else:
+            self.sig_pos = self.path[1]
+            self.path.pop(0)
+            self.path.pop(0)
+        
+               
+    #regresa si hay un robot en una celda
+    def robotInCell(self,celda):
+        cell_contents = self.model.grid.get_cell_list_contents(celda)
+        agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
+        return len(agents)>0
+        
+    #regresa la cantidad de celdas que el robot puede avanzar
+    def num_avanzar(self, pos, path):
+        if len(self.path) < 2: #si el camino no tiene al menos 2 celdas solo se desplaza una
+            return 1
+        
+        #analizamos la celda actual y las dos siguientes
+        #si no comparten fila ni comparten columna se desplaza una sola celda
+        if not ((pos[0] == path[0][0] and path[0][0] == path[1][0]) or (pos[1] == path[0][1] and path[0][1] == path[1][1])):
+            return 1
+        
+        if(self.robotInCell(self.path[1])): #si hay un robot en la segunda celda se desplaza una
+            return 1
+
+        return 2    #si no se desplaza 2
 
     #actualiza grafo para acceder a estaciones de carga
     def actualizar_grafo(self, graph, target, action):
@@ -346,6 +378,7 @@ class Robot(Agent):
         self.advance()
                 
     def advance(self):
+        
         if self.pos != self.sig_pos and self.carga > 0: #si se va a mover y tiene carga
             descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
             self.carga = round(self.carga - descarga, 2) #redondear bateria a 2 decimales
@@ -354,3 +387,4 @@ class Robot(Agent):
             if self.carga < 0:
                 self.carga = 0
 
+   
