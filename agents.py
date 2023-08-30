@@ -175,38 +175,45 @@ class Robot(Agent):
                 self.sig_pos = self.pos
                 return
 
+        #eliminar la primera celda del camino, dado que es la celda actual
+        self.path.pop(0)
+
         #si no hay celdas disponibles se queda en la misma posicion
         if(len(self.path) == 0):
           self.sig_pos = self.pos
           return
-    
-        if(len(self.path) <= 3):
-            self.path.pop(0)
-            self.sig_pos = self.path[0]
-        else:            
-            robot = self.robotInCell(self.path[0])   
-            if( robot):
-                self.path.pop(0)
-                self.sig_pos = self.path[0]
-                
-            robot = self.robotInCell(self.path[1]) 
-            if( robot):
-                self.path.pop(0)
-                self.sig_pos = self.path[0]   
-            print(self.path)
-            print(self.path[0][0],self.path[1][0])
-            print(self.path[0][1], self.path[1][1])
-            if(self.path[0][0] == self.path[1][0] or self.path[0][1] == self.path[1][1]):
-                self.path.pop(0)
-                self.sig_pos = self.path[0]
-                print(self.path[0])
-               
         
+        avanza = self.num_avanzar(self.pos, self.path)
+        
+        if(avanza == 1):
+            self.sig_pos = self.path[0]
+            self.path.pop(0)
+        else:
+            self.sig_pos = self.path[1]
+            self.path.pop(0)
+            self.path.pop(0)
+        
+               
+    #regresa si hay un robot en una celda
     def robotInCell(self,celda):
         cell_contents = self.model.grid.get_cell_list_contents(celda)
         agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
         return len(agents)>0
         
+    #regresa la cantidad de celdas que el robot puede avanzar
+    def num_avanzar(self, pos, path):
+        if len(self.path) < 2: #si el camino no tiene al menos 2 celdas solo se desplaza una
+            return 1
+        
+        #analizamos la celda actual y las dos siguientes
+        #si no comparten fila ni comparten columna se desplaza una sola celda
+        if not ((pos[0] == path[0][0] and path[0][0] == path[1][0]) or (pos[1] == path[0][1] and path[0][1] == path[1][1])):
+            return 1
+        
+        if(self.robotInCell(self.path[1])): #si hay un robot en la segunda celda se desplaza una
+            return 1
+
+        return 2    #si no se desplaza 2
 
     #actualiza grafo para acceder a estaciones de carga
     def actualizar_grafo(self, graph, target, action):
