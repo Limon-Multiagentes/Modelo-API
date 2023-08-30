@@ -24,7 +24,7 @@ def numRobots():
 @app.route('/paquetes', methods=['GET'])
 def numPaquetes():
     global modelAlmacen
-    paquetes = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "peso": agent.peso} for agent in modelAlmacen.schedulePaquetes.agents]
+    paquetes = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "peso": agent.peso, "surface": agent.surface} for agent in modelAlmacen.schedulePaquetes.agents]
     return jsonify(paquetes)
 
 #retornar los datos para las graficas
