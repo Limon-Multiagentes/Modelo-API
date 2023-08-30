@@ -143,9 +143,39 @@ class Robot(Agent):
         if(len(self.path) == 0):
           self.sig_pos = self.pos
           return
+    
+        if(len(self.path) >= 2):
+            robot = self.robotInCell(self.path[0])   
+           
+            if( robot):
+                self.path.pop(0)
+                self.sig_pos = self.path[0]
+                
+            robot = self.robotInCell(self.path[1]) 
+            if( robot):
+                self.path.pop(0)
+                self.sig_pos = self.path[0]   
+            print(self.path)
+            
+            print(self.path[0][0],self.path[1][0])
+            print(self.path[0][1], self.path[1][1])
+            if(self.path[0][0] == self.path[1][0] or self.path[0][1] == self.path[1][1]):
+                print(self.path, "El path es")
+                self.path.pop(0)
+                self.sig_pos = self.path[0]
+                print(self.path, "El path es")
+                self.path.pop(0)
+                self.sig_pos = self.path[0]
+                print(self.path, "El path es")
+        else:            
+            self.path.pop(0)
+            self.sig_pos = self.path[0]
         
-        self.path.pop(0)
-        self.sig_pos = self.path[0]
+    def robotInCell(self,celda):
+        cell_contents = self.model.grid.get_cell_list_contents(celda)
+        agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
+        return len(agents)>0
+        
 
     #actualiza grafo para acceder a estaciones de carga
     def actualizar_grafo(self, graph, target, action):
