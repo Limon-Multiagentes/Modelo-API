@@ -144,9 +144,11 @@ class Robot(Agent):
           self.sig_pos = self.pos
           return
     
-        if(len(self.path) >= 2):
+        if(len(self.path) <= 3):
+            self.path.pop(0)
+            self.sig_pos = self.path[0]
+        else:            
             robot = self.robotInCell(self.path[0])   
-           
             if( robot):
                 self.path.pop(0)
                 self.sig_pos = self.path[0]
@@ -156,20 +158,13 @@ class Robot(Agent):
                 self.path.pop(0)
                 self.sig_pos = self.path[0]   
             print(self.path)
-            
             print(self.path[0][0],self.path[1][0])
             print(self.path[0][1], self.path[1][1])
             if(self.path[0][0] == self.path[1][0] or self.path[0][1] == self.path[1][1]):
-                print(self.path, "El path es")
                 self.path.pop(0)
                 self.sig_pos = self.path[0]
-                print(self.path, "El path es")
-                self.path.pop(0)
-                self.sig_pos = self.path[0]
-                print(self.path, "El path es")
-        else:            
-            self.path.pop(0)
-            self.sig_pos = self.path[0]
+                print(self.path[0])
+               
         
     def robotInCell(self,celda):
         cell_contents = self.model.grid.get_cell_list_contents(celda)
