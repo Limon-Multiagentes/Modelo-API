@@ -32,8 +32,8 @@ class Paquete(Agent):
         self.peso = peso
         self.surface = "Cinta" #superficie en que esta el paquete, usada por Unity
         self.model.paquetes_recibidos += 1
+        self.robotId = None
     
-    # Aqui nos sirve para checar si la caje esta sobre una cinta o un robot y en que posicion se encuentra 
     def step(self):
         if(self.pos in self.model.celdas_cinta): #si esta sobre una cinta
 
@@ -87,6 +87,7 @@ class Paquete(Agent):
                         break
                     elif isinstance(content, Cinta):
                         self.surface = "Cinta"
+                        self.robotId = None
 
                 self.model.grid.move_agent(self, self.sig_pos)
 
@@ -112,10 +113,13 @@ class Robot(Agent):
         self.sig_pos = None
         self.peso_carga = 0
         self.carga = 100
+        self.solicitud = None #solcitud a procesar
         self.target = None
-        self.action = "WANDER" # El robot va divagando no sabe lo que hace
+        self.action = "HALT" # El robot se mueve aleatoriamente
+        self.cont_wander = 0 #Cuantos steps estará en wander
         self.path = []
         self.updated_graph = False
+        self.isFast = False #el robot va rapido o lento
 
     #busca_celdas_disponibles
     def busca_celdas_disponibles(self, incluir, inicio, remove_agents=True):
@@ -154,6 +158,14 @@ class Robot(Agent):
           return
         #seleccionar una de las celdas disponibles
         self.sig_pos = self.random.choice(celdas).pos
+        #disminuye la cantidad de steps en wander
+        self.cont_wander -=1
+        #se pide al robot esperar si el contador llega a 0
+        if(self.cont_wander == 0):
+            self.action = "HALT"
+        #no va a velocidad doble
+        self.isFast = False
+
 
     #avanza hacia un objetivo
     def ve_a_objetivo(self):      
@@ -188,10 +200,12 @@ class Robot(Agent):
         if(avanza == 1):
             self.sig_pos = self.path[0]
             self.path.pop(0)
+            self.isFast = False
         else:
             self.sig_pos = self.path[1]
             self.path.pop(0)
             self.path.pop(0)
+            self.isFast = True
         
                
     #regresa si hay un robot en una celda
@@ -276,7 +290,12 @@ class Robot(Agent):
     def guardar_paquete(self):
         self.peso_carga = 0
         self.action = "WANDER"
+        self.cont_wander = 5
         contents = self.model.grid.get_cell_list_contents(self.pos)
+        for content in contents:
+            if isinstance(content, Paquete):
+                content.robotId = None
+                
 
     #recoge un paquete de un estante
     def recoge_paquete(self):
@@ -287,6 +306,7 @@ class Robot(Agent):
                 self.target = (9, 15)
                 self.action = "SEND"
                 self.model.liberar_espacio(self.pos)
+                self.solicitud = None
                 break
 
     #envia un paquete por la cinta transportadora
@@ -297,6 +317,7 @@ class Robot(Agent):
                 content.sig_pos = (self.pos[0]-1, self.pos[1])
                 self.peso_carga = 0
                 self.action = "WANDER"
+                self.cont_wander = 5
 
     #calcula distancia entre 2 puntos
     def distancia_manhattan(self, pos1, pos2):
@@ -304,16 +325,29 @@ class Robot(Agent):
     
     #procesa solicitud de ayuda
     def procesar_solicitud(self, solicitud):
-        if self.target or self.action in ["RECEIVE", "STORE", "CHARGE", "SEND"] or self.carga_baja():
+        if self.action in ["RETRIEVE", "STORE", "CHARGE", "SEND", "PICKUP"] or self.carga_baja():
             return False
         else:
+            if solicitud["action"] == "RETRIEVE" and not self.puede_guardar():
+                return False
+            self.solicitud = copy.deepcopy(solicitud)
             self.target = solicitud["position"]
             self.action = solicitud["action"]
             return True
+        
+    #indica reasignar una tarea que el robot habia aceptado previamente
+    def reasigna_tarea(self):
+        self.model.pedirAyuda(copy.deepcopy(self.solicitud))
+        self.solicitud = None
+        
+    #regresa si un robot puede guardar un paquete
+    def puede_guardar(self):
+        return not self.model.todo_lleno()
     
     #solicitar un espacio para guardar un paquete
     def solicitar_espacio_guardar(self):
         self.action = "STORE"
+        self.solicitud = None
         self.target = self.model.get_espacio_disponible()
 
     #mueve el paquete a su siguiente posicion
@@ -322,6 +356,7 @@ class Robot(Agent):
         for content in contents:
             if isinstance(content, Paquete):
                 content.sig_pos = self.sig_pos
+                content.robotId = self.unique_id
 
     #seleccionar la estacion mas carga y colocarla como objetivo del robot
     def selecciona_estacion_carga(self):
@@ -332,7 +367,7 @@ class Robot(Agent):
 
     #regresa si la carga está baja
     def carga_baja(self):
-        return self.carga <= 25
+        return self.carga <= 50
 
     #regresa si el robot está cargando
     def esta_cargando(self):
@@ -351,7 +386,13 @@ class Robot(Agent):
             self.updated_graph = False
 
         if self.target: #si hay un target ir al objetivo
-            self.ve_a_objetivo()
+            if self.action == "RETRIEVE":
+                if self.puede_guardar():
+                    self.ve_a_objetivo()
+                else:
+                    self.reasigna_tarea()
+            else:
+                self.ve_a_objetivo()
             if self.action in ["STORE", "SEND"]: #si va a guardar o enviar un paquete mover al paquete
                 self.mover_paquete()
         elif self.action == "RETRIEVE": #esperar un paquete en la cinta transportadora
@@ -367,12 +408,15 @@ class Robot(Agent):
             if self.carga == 100: #si ya se termino de cargar comienza a divagar
                 self.model.ciclos_carga +=1
                 self.action = "WANDER"
-        elif self.carga_baja() and self.action not in ["STORE", "RECEIVE", "PICKUP", "SEND"]: #si tiene carga y no esta ocupado seleccionar una estacion de carga
+                self.cont_wander = 5
+        elif self.carga_baja() and self.action not in ["STORE", "RETRIEVE", "PICKUP", "SEND"]: #si tiene carga y no esta ocupado seleccionar una estacion de carga
             self.selecciona_estacion_carga()
             self.action = "CHARGE"
             self.ve_a_objetivo()
-        else: #seleccionar una posicion
+        elif self.action == "WANDER": #seleccionar una posicion
             self.seleccionar_nueva_pos()
+        else: #esta en modo halt y debe esperar
+            self.sig_pos = self.pos
 
         #avanzar
         self.advance()

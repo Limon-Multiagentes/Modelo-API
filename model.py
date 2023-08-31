@@ -280,7 +280,8 @@ class Almacen(Model):
     
     #crea una solicitud de ayuda
     def pedirAyuda(self, solicitud):
-        self.solicitudes.append(solicitud)
+        if solicitud:
+            self.solicitudes.append(solicitud)
 
     #realiza cada una de las solicitudes a los robots
     def realizarSolicitudes(self):

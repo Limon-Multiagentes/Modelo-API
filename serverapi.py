@@ -17,14 +17,14 @@ modelAlmacen = Almacen(16, 16)
 @app.route('/robots', methods=['GET'])
 def numRobots():
     global modelAlmacen
-    robots = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "action": agent.action, "carga": agent.carga} for agent in modelAlmacen.scheduleRobots.agents]
+    robots = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "action": agent.action, "carga": agent.carga, "isFast": agent.isFast} for agent in modelAlmacen.scheduleRobots.agents]
     return jsonify(robots)
 
 # retornar una lista con los datos de los paquetes
 @app.route('/paquetes', methods=['GET'])
 def numPaquetes():
     global modelAlmacen
-    paquetes = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "peso": agent.peso, "surface": agent.surface} for agent in modelAlmacen.schedulePaquetes.agents]
+    paquetes = [{'id': agent.unique_id, 'x': agent.pos[0], 'y': agent.pos[1], "peso": agent.peso, "surface": agent.surface, "robotId": agent.robotId} for agent in modelAlmacen.schedulePaquetes.agents]
     return jsonify(paquetes)
 
 #retornar los datos para las graficas
