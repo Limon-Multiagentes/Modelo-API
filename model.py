@@ -6,9 +6,7 @@ from itertools import chain
 from agents import Cinta, Estante, EstacionCarga, Celda, Robot, Paquete
 import networkx as nx
 import random
-
-
-        
+       
 # Creacion del modelo a utilizar
 class Almacen(Model):
     # Aqui definimos todas las posiciones del almacen que pueden hacer , es decir, subir o bajar o moverse de izquierda o derecha
@@ -98,9 +96,7 @@ class Almacen(Model):
                              "PaquetesRecibidos": "paquetes_recibidos",
                              "PaquetesEnviados": "paquetes_enviados",
                              "CiclosCarga": "ciclos_carga"})
-    
-
-    
+        
     # Colocamos la cintas en determinadas posciones
     def colocar_cintas(self):
         #posiciones para las cintas
@@ -172,7 +168,6 @@ class Almacen(Model):
             self.grid.place_agent(robot, pos)
             self.scheduleRobots.add(robot)
 
-
     # aqui vemos si el modelo esta corriendo 
     def step(self):
         if self.running:
@@ -193,7 +188,6 @@ class Almacen(Model):
             self.schedulePaquetes.step()
             self.datacollector.collect(self)
             
-
     # Checamos si el almacen esta lleno
     def instantiatePackage(self):
         #no ingresar paquetes si el almacen esta lleno
@@ -382,4 +376,3 @@ class Almacen(Model):
     # Se ha reanudo el modelo
     def reanudar_modelo(self):
         self.running = True
-    

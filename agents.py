@@ -6,6 +6,7 @@ from mesa.time import RandomActivation
 from mesa.datacollection import DataCollector
 import networkx as nx
 import copy
+import random
 
 # Aqui declaramos la celda y que direcciones puede tener
 class Celda(Agent):
@@ -107,6 +108,16 @@ class Robot(Agent):
         "up": (0, 1), 
     }
 
+    actions = {
+        "RETRIEVE": 7,
+        "CHARGE": 6,
+        "STORE": 5,
+        "PICKUP": 4,
+        "SEND": 3,
+        "WANDER": 2,
+        "HALT": 1
+    }
+
     # Constructor de la clase Robor le entregamos su siguiente posicion que peso lleva, su carga de bateria, que objetivo tiene, que accion lleva es decir si va divagando o tiene algo fijo , camino recorrido y grafo actualizado
     def __init__(self, unique_id, model):
         super().__init__(unique_id, model)
@@ -115,7 +126,7 @@ class Robot(Agent):
         self.carga = 100
         self.solicitud = None #solcitud a procesar
         self.target = None
-        self.action = "HALT" # El robot se mueve aleatoriamente
+        self.action = "HALT" # El robot no se mueve al incio
         self.cont_wander = 0 #Cuantos steps estará en wander
         self.path = []
         self.updated_graph = False
@@ -142,7 +153,7 @@ class Robot(Agent):
         if remove_agents:
             for celda in celdas:
                 cell_contents = self.model.grid.get_cell_list_contents(celda.pos)
-                agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
+                agents = [agent for agent in cell_contents if isinstance(agent, (Robot, Estante, EstacionCarga))]
                 if not agents:
                     disponibles.append(celda)
         else:
@@ -158,12 +169,14 @@ class Robot(Agent):
           return
         #seleccionar una de las celdas disponibles
         self.sig_pos = self.random.choice(celdas).pos
-        #disminuye la cantidad de steps en wander
-        self.cont_wander -=1
-        #se pide al robot esperar si el contador llega a 0
-        if(self.cont_wander == 0):
-            self.action = "HALT"
-        #no va a velocidad doble
+
+        if self.action == "WANDER":
+            #disminuye la cantidad de steps en wander
+            self.cont_wander -=1
+            #se pide al robot esperar si el contador llega a 0
+            if(self.cont_wander == 0): 
+                self.action = "HALT" #detenerse
+            #no va a velocidad doble
         self.isFast = False
 
 
@@ -175,6 +188,8 @@ class Robot(Agent):
                 self.graph = self.actualizar_grafo(self.model.graph, self.target, self.action)
             try:
                 graph = self.elimina_obstaculos(self.graph, self.pos, self.action)
+                if self.sig_pos != self.pos: #si debe apartarse retornar
+                    return
                 self.path = nx.astar_path(graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
             except:
                 self.sig_pos = self.pos
@@ -182,6 +197,8 @@ class Robot(Agent):
         else:
             try:
                 graph = self.elimina_obstaculos(self.model.graph, self.pos, self.action)
+                if self.sig_pos != self.pos: #si debe apartarse retornar
+                    return
                 self.path = nx.astar_path(graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
             except:
                 self.sig_pos = self.pos
@@ -194,9 +211,9 @@ class Robot(Agent):
         if(len(self.path) == 0):
           self.sig_pos = self.pos
           return
-        
+
         avanza = self.num_avanzar(self.pos, self.path)
-        
+        # Aqui checamos la posicion del robot para ver si puedes avanzar 2 celdas
         if(avanza == 1):
             self.sig_pos = self.path[0]
             self.path.pop(0)
@@ -271,7 +288,16 @@ class Robot(Agent):
             newPosition = (pos[0] + self.dirMovs[dir][0], pos[1] + self.dirMovs[dir][1])
             contents = self.model.grid.get_cell_list_contents(newPosition)
             for content in contents:
-                if isinstance(content, Robot):
+                if isinstance(content, Robot): #si hay un robot en la celda remover la arista, enviar la negociacion
+                    prioridad = content.compara_prioridad(self.action)
+                    if prioridad == 1: #si este robot tiene mayor prioridad pedir al otro que se mueva
+                        content.apartarse()
+                    elif prioridad == -1: #si este robot tiene menor prioridad moverse
+                        self.apartarse()
+                    else:
+                        robot = random.choice([self, content])
+                        robot.apartarse()
+
                     if G.has_edge(pos, newPosition):
                         G.remove_edge(pos, newPosition)
 
@@ -338,6 +364,7 @@ class Robot(Agent):
     #indica reasignar una tarea que el robot habia aceptado previamente
     def reasigna_tarea(self):
         self.model.pedirAyuda(copy.deepcopy(self.solicitud))
+        self.action = "HALT"
         self.solicitud = None
         
     #regresa si un robot puede guardar un paquete
@@ -378,9 +405,31 @@ class Robot(Agent):
         self.carga += (100/15)
         self.carga = round( min(self.carga, 100), 2)
 
+    #comparar prioridad
+    #si el otro robot tiene mas prioridad regresa uno, si tiene menos regresa -1, si es igual regresa 0
+    def compara_prioridad(self, other_action):
+        if self.actions[other_action] > self.actions[self.action]:
+            return 1
+        elif self.actions[other_action] == self.actions[self.action]:
+            return 0
+        else:
+            return -1
+        
+    #apartarse fuera del camino de otro robot
+    def apartarse(self):
+        self.seleccionar_nueva_pos()
+
     def step(self):
+
+        if self.sig_pos and (self.pos != self.sig_pos): #si ya tiene una posicion asignada moverse, esto ocurrira cuando se aparte del camino de otro robot
+            if self.action in ["STORE", "SEND"]: #si va a guardar o enviar un paquete mover al paquete
+                self.mover_paquete()
+            self.advance()
+            return
+
         #si ha llegado al target eliminarlo
         #cuando esta guardando, eliminar la carga
+        
         if self.pos == self.target:
             self.target = None
             self.updated_graph = False
@@ -425,10 +474,10 @@ class Robot(Agent):
         
         if self.pos != self.sig_pos and self.carga > 0: #si se va a mover y tiene carga
             descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
+            if self.isFast:
+                descarga += 0.1
             self.carga = round(self.carga - descarga, 2) #redondear bateria a 2 decimales
             self.model.movimientos += 1 
             self.model.grid.move_agent(self, self.sig_pos) #mover al agente
             if self.carga < 0:
                 self.carga = 0
-
-   
