@@ -15,7 +15,7 @@ def agent_portrayal(agent):
     elif isinstance(agent, EstacionCarga):
         return {"Shape": "rect", "Filled": "true", "Color": "yellow", "Layer": 0, "w": 0.9, "h": 0.9}
     elif isinstance(agent, Robot):
-        return {"Shape": "circle", "Filled": "true", "Color": "blue", "Layer": 1, "r": 0.9, "text": f"{agent.carga}", "text_color": "white"}
+        return {"Shape": "circle", "Filled": "true", "Color": "blue", "Layer": 1, "r": 0.9, "text": f"{agent.action}", "text_color": "white"}
     elif isinstance(agent, Paquete):
         return {"Shape": "rect", "Filled": "true", "Color": "green", "Layer": 2, "w": 0.5, "h": 0.5, "text": f"{agent.peso}", "text_color": "white"}
 

@@ -153,7 +153,7 @@ class Robot(Agent):
         if remove_agents:
             for celda in celdas:
                 cell_contents = self.model.grid.get_cell_list_contents(celda.pos)
-                agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
+                agents = [agent for agent in cell_contents if isinstance(agent, (Robot, Estante, EstacionCarga))]
                 if not agents:
                     disponibles.append(celda)
         else:
