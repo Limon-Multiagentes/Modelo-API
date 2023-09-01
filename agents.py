@@ -115,7 +115,7 @@ class Robot(Agent):
         self.carga = 100
         self.solicitud = None #solcitud a procesar
         self.target = None
-        self.action = "HALT" # El robot se mueve aleatoriamente
+        self.action = "HALT" # El robot no se mueve 
         self.cont_wander = 0 #Cuantos steps estará en wander
         self.path = []
         self.updated_graph = False
@@ -194,9 +194,9 @@ class Robot(Agent):
         if(len(self.path) == 0):
           self.sig_pos = self.pos
           return
-        
+        self.checaRobot(self.pos,self.path)
         avanza = self.num_avanzar(self.pos, self.path)
-        
+        # Aqui checamos la posicion del robot para ver si puedes avanzar 2 celdas
         if(avanza == 1):
             self.sig_pos = self.path[0]
             self.path.pop(0)
@@ -381,6 +381,7 @@ class Robot(Agent):
     def step(self):
         #si ha llegado al target eliminarlo
         #cuando esta guardando, eliminar la carga
+        
         if self.pos == self.target:
             self.target = None
             self.updated_graph = False
@@ -431,4 +432,10 @@ class Robot(Agent):
             if self.carga < 0:
                 self.carga = 0
 
-   
+    def checaRobot(self,pos,path):
+        # # if  not ((pos[0] == path[0][0] and path[0][0] == path[1][0])):
+        # #     return 1
+        # cell_contents = self.model.grid.get_cell_list_contents(self.path[0])
+        # agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
+        # print(agents[0])
+        pass
