@@ -364,6 +364,7 @@ class Robot(Agent):
     #indica reasignar una tarea que el robot habia aceptado previamente
     def reasigna_tarea(self):
         self.model.pedirAyuda(copy.deepcopy(self.solicitud))
+        self.action = "HALT"
         self.solicitud = None
         
     #regresa si un robot puede guardar un paquete
@@ -473,6 +474,8 @@ class Robot(Agent):
         
         if self.pos != self.sig_pos and self.carga > 0: #si se va a mover y tiene carga
             descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
+            if self.isFast:
+                descarga += 0.1
             self.carga = round(self.carga - descarga, 2) #redondear bateria a 2 decimales
             self.model.movimientos += 1 
             self.model.grid.move_agent(self, self.sig_pos) #mover al agente
