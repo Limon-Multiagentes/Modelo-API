@@ -379,19 +379,6 @@ class Almacen(Model):
     
     # Checa que robot es el mas optimo
     def mas_optimo(self):
-        # self.solicitudes = sorted(self.solicitudes, key=lambda solicitud: (-solicitud["priority"], solicitud["id"]))
-        # agentes = self.getAgentes()
-
-        # restantes = []
-
-        # for solicitud in self.solicitudes:
-        #     agentes = sorted(agentes, key=lambda agente: self.distancia_manhattan(solicitud["position"], agente[1]))
-        #     accepted = False
-        #     for agente in agentes:
-        #         result = agente[0].procesar_solicitud(solicitud)
-        #         if result:
-        #             accepted = True
-        #             break
-        #     if not accepted:
-        #         restantes.append(solicitud)
+        cell_contents = self.model.grid.get_cell_list_contents(celda)
+        agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
         pass
