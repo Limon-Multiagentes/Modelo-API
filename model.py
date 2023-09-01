@@ -376,9 +376,3 @@ class Almacen(Model):
     # Se ha reanudo el modelo
     def reanudar_modelo(self):
         self.running = True
-    
-    # Checa que robot es el mas optimo
-    def mas_optimo(self):
-        cell_contents = self.model.grid.get_cell_list_contents(celda)
-        agents = [agent for agent in cell_contents if isinstance(agent, Robot)]
-        pass
