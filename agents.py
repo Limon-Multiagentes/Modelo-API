@@ -183,7 +183,7 @@ class Robot(Agent):
     #avanza hacia un objetivo
     def ve_a_objetivo(self):      
         #actualizar el grafo con los caminos adicionales correspondientes y buscar el camino
-        if self.action in ["STORE", "CHARGE", "PICKUP"]:
+        if self.action in ["RETRIEVE", "STORE", "CHARGE", "PICKUP", "SEND"]:
             if not self.updated_graph:
                 self.graph = self.actualizar_grafo(self.model.graph, self.target, self.action)
             try:
@@ -252,6 +252,10 @@ class Robot(Agent):
         if action in ["STORE", "PICKUP"]:
             G.add_edge((target[0], target[1]-1), target)
             G.add_edge((target[0], target[1]+1), target)
+        elif action == "RETRIEVE":
+            G.add_edge((target[0], target[1]+1), target)
+        elif action == "SEND":
+            G.add_edge((target[0], target[1]-1), target)
         else:
             if target[0] == 0:
                 G.add_edge((target[0]+1, target[1]), target)
@@ -365,6 +369,7 @@ class Robot(Agent):
     def reasigna_tarea(self):
         self.model.pedirAyuda(copy.deepcopy(self.solicitud))
         self.action = "HALT"
+        self.target = None
         self.solicitud = None
         
     #regresa si un robot puede guardar un paquete
@@ -429,7 +434,6 @@ class Robot(Agent):
 
         #si ha llegado al target eliminarlo
         #cuando esta guardando, eliminar la carga
-        
         if self.pos == self.target:
             self.target = None
             self.updated_graph = False
@@ -471,7 +475,9 @@ class Robot(Agent):
         self.advance()
                 
     def advance(self):
-        
+        #if self.action in ["RETRIEVE", "PICKUP"]: #pedir al modelo si se debe reasignar la tarea para eficientar
+        #    self.reasigna_tarea()
+
         if self.pos != self.sig_pos and self.carga > 0: #si se va a mover y tiene carga
             descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
             if self.isFast:
