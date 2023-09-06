@@ -56,6 +56,9 @@ class Almacen(Model):
         self.ordenes = 0
 
         #espacios de los estantes en el almacen
+        #0 indica que esta vacio
+        #1 indica que la posicion ya se asigno a un robot para dejar un paquete
+        #e2 indica que esta ocupado
         self.espacios_almacen = [
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
@@ -227,8 +230,11 @@ class Almacen(Model):
         #seleccionar un estante de los que estan ocupados aleatoritamente
         for i in range(self.FILAS_ESTANTES):
             for j in range(self.COLUMNAS_ESTANTES):
-                if self.espacios_almacen[i][j] == 1:
+                if self.espacios_almacen[i][j] == 2:
                     ocupadas.append((i, j))
+
+        if len(ocupadas) == 0:
+            return
 
         random_estante = random.choice(ocupadas)
 
@@ -258,15 +264,23 @@ class Almacen(Model):
     def todo_vacio(self):
         for i in range(self.FILAS_ESTANTES):
             for j in range(self.COLUMNAS_ESTANTES):
-                if self.espacios_almacen[i][j] == 1:
+                if self.espacios_almacen[i][j] != 0:
                     return False
         return True
     
+    #libera un espacio del almacen
     def liberar_espacio(self, pos):
         index = self.celdas_estantes.index(pos)
         i = index // self.COLUMNAS_ESTANTES
         j = index % self.COLUMNAS_ESTANTES
         self.espacios_almacen[i][j] = 0
+
+    #ocupa un espacio del almacen
+    def ocupar_espacio(self, pos):
+        index = self.celdas_estantes.index(pos)
+        i = index // self.COLUMNAS_ESTANTES
+        j = index % self.COLUMNAS_ESTANTES
+        self.espacios_almacen[i][j] = 2
 
     #calcula distancia entre 2 puntos
     def distancia_manhattan(self, pos1, pos2):

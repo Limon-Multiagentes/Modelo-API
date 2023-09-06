@@ -70,7 +70,6 @@ class Paquete(Agent):
                 else: # actualizar la superficie si se debe mover
                     self.surface = "Robot" 
 
-            
             if should_move: #si se puede mover actualizar la posicion
                 self.model.grid.move_agent(self, self.sig_pos)
             else:
@@ -112,8 +111,8 @@ class Robot(Agent):
         "RETRIEVE": 7,
         "CHARGE": 6,
         "STORE": 5,
-        "PICKUP": 4,
-        "SEND": 3,
+        "SEND": 4,
+        "PICKUP": 3,
         "WANDER": 2,
         "HALT": 1
     }
@@ -183,6 +182,7 @@ class Robot(Agent):
     #avanza hacia un objetivo
     def ve_a_objetivo(self):      
         #actualizar el grafo con los caminos adicionales correspondientes y buscar el camino
+
         if self.action in ["RETRIEVE", "STORE", "CHARGE", "PICKUP", "SEND"]:
             if not self.updated_graph:
                 self.graph = self.actualizar_grafo(self.model.graph, self.target, self.action)
@@ -191,7 +191,7 @@ class Robot(Agent):
                 if self.sig_pos != self.pos: #si debe apartarse retornar
                     return
                 self.path = nx.astar_path(graph, self.pos, self.target, heuristic=self.distancia_manhattan, weight="cost")
-            except:
+            except Exception as e:
                 self.sig_pos = self.pos
                 return
         else:
@@ -233,19 +233,44 @@ class Robot(Agent):
         
     #regresa la cantidad de celdas que el robot puede avanzar
     def num_avanzar(self, pos, path):
-        if len(self.path) < 2: #si el camino no tiene al menos 2 celdas solo se desplaza una
+        if len(path) < 2: #si el camino no tiene al menos 2 celdas solo se desplaza una
             return 1
         
         #analizamos la celda actual y las dos siguientes
         #si no comparten fila ni comparten columna se desplaza una sola celda
-        if not ((pos[0] == path[0][0] and path[0][0] == path[1][0]) or (pos[1] == path[0][1] and path[0][1] == path[1][1])):
+        coincide_x = pos[0] == path[0][0] and path[0][0] == path[1][0]
+        coincide_y = pos[1] == path[0][1] and path[0][1] == path[1][1]
+
+        if not (coincide_x or coincide_y):
             return 1
         
-        if(self.robotInCell(self.path[1])): #si hay un robot en la segunda celda se desplaza una
+        if(self.robotInCell(path[1])): #si hay un robot en la segunda celda se desplaza una
             return 1
-
+        
+        #si hay robots en las celdas a los laterales de la primera celda, solo se puede desplazar una
+        if coincide_y:
+            if path[0][1] == 0:
+                if self.robotInCell((path[0][0], path[0][1]+1)): #si estamos en la primera linea solo checar la superior
+                    return 1
+            elif path[0][1] == 15:
+                if self.robotInCell((path[0][0], path[0][1]-1)): #si estamos en la ultima linea solo checar la inferior
+                    return 1
+            else:
+                if self.robotInCell((path[0][0], path[0][1]+1)) or self.robotInCell((path[0][0], path[0][1]-1)): #si no checar a ambos lados
+                    return 1
+        if coincide_x:
+            if path[0][0] == 0:
+                if self.robotInCell((path[0][0]+1, path[0][1])): #si estamos en la primera columna solo checar a la derecha
+                    return 1
+            elif path[0][0] == 15: 
+                if self.robotInCell((path[0][0]-1, path[0][1])): #si estamos en la ultima columna solo checar a la izquierda
+                    return 1
+            else:
+                if (self.robotInCell((path[0][0]+1, path[0][1])) or self.robotInCell((path[0][0]-1, path[0][1]))): #si no checar a ambos lados
+                    return 1
+            
         return 2    #si no se desplaza 2
-
+    
     #actualiza grafo para acceder a estaciones de carga
     def actualizar_grafo(self, graph, target, action):
         G = copy.deepcopy(graph)
@@ -324,6 +349,7 @@ class Robot(Agent):
         contents = self.model.grid.get_cell_list_contents(self.pos)
         for content in contents:
             if isinstance(content, Paquete):
+                self.model.ocupar_espacio(self.pos)
                 content.robotId = None
                 
 
@@ -371,6 +397,7 @@ class Robot(Agent):
         self.action = "HALT"
         self.target = None
         self.solicitud = None
+        self.updated_graph = False
         
     #regresa si un robot puede guardar un paquete
     def puede_guardar(self):
@@ -394,8 +421,15 @@ class Robot(Agent):
     def selecciona_estacion_carga(self):
         celdas_carga = self.model.celdas_cargas
         celdas_ord = sorted(celdas_carga, key=lambda celda: self.distancia_manhattan(self.pos, celda))
-        celda_mas_cercana = celdas_ord[0]
-        self.target = celda_mas_cercana
+        libres = []
+        for celda in celdas_ord:
+            if not self.robotInCell(celda):
+                libres.append(celda)
+        if len(libres) == 0:
+            self.sig_pos = self.pos
+        else:
+            celda_mas_cercana = libres[0]
+            self.target = celda_mas_cercana
 
     #regresa si la carga está baja
     def carga_baja(self):
@@ -433,7 +467,6 @@ class Robot(Agent):
             return
 
         #si ha llegado al target eliminarlo
-        #cuando esta guardando, eliminar la carga
         if self.pos == self.target:
             self.target = None
             self.updated_graph = False
@@ -475,10 +508,10 @@ class Robot(Agent):
         self.advance()
                 
     def advance(self):
-        #if self.action in ["RETRIEVE", "PICKUP"]: #pedir al modelo si se debe reasignar la tarea para eficientar
-        #    self.reasigna_tarea()
+        if self.action in ["RETRIEVE", "PICKUP"]: #pedir al modelo si se debe reasignar la tarea para eficientar
+            self.reasigna_tarea()
 
-        if self.pos != self.sig_pos and self.carga > 0: #si se va a mover y tiene carga
+        if self.pos != self.sig_pos and self.carga > 0 and not self.esta_cargando(): #si se va a mover y tiene carga
             descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
             if self.isFast:
                 descarga += 0.1
