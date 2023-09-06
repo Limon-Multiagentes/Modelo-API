@@ -291,6 +291,7 @@ class Almacen(Model):
         if solicitud:
             self.solicitudes.append(solicitud)
 
+    #determina si un agente es optimo para realizar una tarea en base a su distancia al target y la de los agentes disponibles
     def es_optimo(self, solicitud, dist):
         if(solicitud == None):
             return True

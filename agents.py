@@ -522,11 +522,13 @@ class Robot(Agent):
             self.model.grid.move_agent(self, self.sig_pos) #mover al agente
             if self.carga < 0:
                 self.carga = 0
-
+    
+    #evalua si el agente es optimo para realizar la tarea que esta haciendo
     def evaluar_optimo(self):
         if self.target and self.action in ["RETRIEVE", "PICKUP"]: #pedir al modelo si se debe reasignar la tarea para eficientar
             dist = self.distancia_manhattan(self.pos, self.target)
             res = self.model.es_optimo(copy.deepcopy(self.solicitud), dist)
+            #si no es optimo dejara de hacerla y esta se pasara a otro agente
             if not res: 
                 self.action = "HALT"
                 self.target = None
