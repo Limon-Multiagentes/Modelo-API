@@ -291,6 +291,18 @@ class Almacen(Model):
         if solicitud:
             self.solicitudes.append(solicitud)
 
+    def es_optimo(self, solicitud, dist):
+        if(solicitud == None):
+            return True
+        agentes = self.getAgentes()
+        disponibles = [agente for agente in agentes if agente[0].puede_hacer_tarea(solicitud)]
+        for agente in disponibles:
+            if self.distancia_manhattan(agente[1], solicitud["position"]) < dist:
+                self.pedirAyuda(solicitud) 
+                return False
+        return True
+
+
     #realiza cada una de las solicitudes a los robots
     def realizarSolicitudes(self):
         self.solicitudes = sorted(self.solicitudes, key=lambda solicitud: (-solicitud["priority"], solicitud["id"]))

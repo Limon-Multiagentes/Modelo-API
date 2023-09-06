@@ -381,15 +381,18 @@ class Robot(Agent):
     
     #procesa solicitud de ayuda
     def procesar_solicitud(self, solicitud):
-        if self.action in ["RETRIEVE", "STORE", "CHARGE", "SEND", "PICKUP"] or self.carga_baja():
-            return False
-        else:
-            if solicitud["action"] == "RETRIEVE" and not self.puede_guardar():
-                return False
+        if self.puede_hacer_tarea(solicitud):
             self.solicitud = copy.deepcopy(solicitud)
             self.target = solicitud["position"]
             self.action = solicitud["action"]
             return True
+        
+    def puede_hacer_tarea(self, solicitud):
+        if self.action in ["RETRIEVE", "STORE", "CHARGE", "SEND", "PICKUP"] or self.carga_baja():
+            return False
+        if solicitud["action"] == "RETRIEVE" and not self.puede_guardar():
+            return False
+        return True
         
     #indica reasignar una tarea que el robot habia aceptado previamente
     def reasigna_tarea(self):
@@ -506,11 +509,10 @@ class Robot(Agent):
 
         #avanzar
         self.advance()
+        #evaluar si es el optimo para realizar una tarea
+        self.evaluar_optimo()
                 
     def advance(self):
-        if self.action in ["RETRIEVE", "PICKUP"]: #pedir al modelo si se debe reasignar la tarea para eficientar
-            self.reasigna_tarea()
-
         if self.pos != self.sig_pos and self.carga > 0 and not self.esta_cargando(): #si se va a mover y tiene carga
             descarga = (0.1 + self.peso_carga * 0.1) #cantidad a descargar
             if self.isFast:
@@ -520,3 +522,15 @@ class Robot(Agent):
             self.model.grid.move_agent(self, self.sig_pos) #mover al agente
             if self.carga < 0:
                 self.carga = 0
+
+    def evaluar_optimo(self):
+        if self.target and self.action in ["RETRIEVE", "PICKUP"]: #pedir al modelo si se debe reasignar la tarea para eficientar
+            dist = self.distancia_manhattan(self.pos, self.target)
+            res = self.model.es_optimo(copy.deepcopy(self.solicitud), dist)
+            if not res: 
+                self.action = "HALT"
+                self.target = None
+                self.solicitud = None
+                self.updated_graph = False
+
+
